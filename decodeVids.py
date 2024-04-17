@@ -1,8 +1,6 @@
-from moviepy.editor import VideoFileClip
+# from moviepy.editor import VideoFileClip
 import numpy as np
 import json
-import time
-import random
 import math
 import base64
 import sys
@@ -12,11 +10,8 @@ import cv2
 from tqdm import tqdm
 from pytube import YouTube
 from statistics import mode, StatisticsError
-# from multiprocessing import Pool, cpu_count
-import multiprocessing
-from queue import Queue
-from threading import Thread
-from collections import OrderedDict
+from multiprocessing import Pool, cpu_count
+# import multiprocessing
 import heapq
 
 padding = 80
@@ -122,15 +117,11 @@ num_elements = 0
 
 def process_frame(frame_details):
     global num_elements
-    frame, encoding_color_map, frame_index, num_elements, num_frames, shared_data = frame_details
-    # print(f"frame_index: {frame_index}, num_elements: {num_elements}")
+    frame, encoding_color_map, frame_index, num_elements, num_frames = frame_details
     
-    used_data_index = 0
-    init_data_index = 0
-    
-    # with shared_data.get_lock():
-    init_data_index = shared_data['data_index']
-    print(f"init_data_index: {init_data_index}")
+    data_index = 0
+    if frame_index == (num_frames - 1):
+        data_index = bits_per_frame * frame_index
     
     num_elements_binary = ''
     bit_buffer = ''
@@ -143,19 +134,19 @@ def process_frame(frame_details):
     while y < end_height:
         for x in range(start_width, end_width, 2):
             if bits_used_in_frame >= bits_per_frame or \
-                (frame_index == (num_frames - 1) and num_elements != 0 and (init_data_index + used_data_index) >= num_elements):
+                (frame_index == (num_frames - 1) and num_elements != 0 and data_index >= num_elements):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
             if num_elements == 0:
                 num_elements_binary += nearest_color_key
                 if len(num_elements_binary) == 160:
                     num_elements = ''.join(chr(int(num_elements_binary[i:i+8], 2)) for i in range(0, len(num_elements_binary), 8))
-                    num_elements = int(num_elements)
+                    num_elements = int(num_elements) + 160
                     # print(num_elements)
             else:
                 bit_buffer += nearest_color_key
-                # if reference_data[used_data_index:used_data_index+1] != nearest_color_key:
-                #     print(f"Mismatch found y:{y}, x:{x} at index {used_data_index}: expected '{reference_data[used_data_index:used_data_index+1]}', got '{nearest_color_key}'")
+                # if reference_data[data_index:data_index+1] != nearest_color_key:
+                #     print(f"Mismatch found y:{y}, x:{x} at index {data_index}: expected '{reference_data[data_index:data_index+1]}', got '{nearest_color_key}'")
                 #     print(f"colorX1Y1: {tuple(frame[y, x])}")
                 #     print(f"colorX1Y2: {tuple(frame[y + 1, x])}")
                 #     print(f"colorX2Y1: {tuple(frame[y, x + 1])}")
@@ -163,15 +154,12 @@ def process_frame(frame_details):
                 if len(bit_buffer) == 8:
                     output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
                     bit_buffer = ''
-                used_data_index += 1
+                data_index += 1
             bits_used_in_frame += 1
         y += 2
         if bits_used_in_frame >= bits_per_frame or \
-            (frame_index == (num_frames - 1) and num_elements != 0 and (init_data_index + used_data_index) >= num_elements):
+            (frame_index == (num_frames - 1) and num_elements != 0 and data_index >= num_elements):
             break
-    # with shared_data.get_lock():
-    shared_data['data_index'] += used_data_index
-    # print(f"End frame_index: {frame_index}")
     return frame_index, output_data
 
 def process_images(video_path, encoding_map_path):
@@ -181,10 +169,6 @@ def process_images(video_path, encoding_map_path):
 
     # with open('vlc.exe_stream.txt', 'r') as file:
     #     reference_data = file.read()
-    
-    manager = multiprocessing.Manager()
-    shared_data = manager.dict()
-    shared_data['data_index'] = 0 
     
     vid = imageio.get_reader(video_path, 'ffmpeg')
     num_frames = vid.count_frames() # get_total_frames(video_path)
@@ -197,7 +181,7 @@ def process_images(video_path, encoding_map_path):
     
     for index, frame in enumerate(vid):
         if index == 0:
-            frame_result = process_frame((frame, encoding_color_map, 0, 0, num_frames, shared_data))
+            frame_result = process_frame((frame, encoding_color_map, 0, 0, num_frames))
             results.append(frame_result)
             next_frame_to_write = 1
             pbar.update(1)
@@ -205,7 +189,7 @@ def process_images(video_path, encoding_map_path):
 
     # Create a multiprocessing pool to process the remaining frames except the last one
     with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-        frame_iterator = ((frame, encoding_color_map, index, num_elements, num_frames, shared_data) for index, frame in enumerate(vid) if index >= 1 and index <= 2) # num_frames - 2
+        frame_iterator = ((frame, encoding_color_map, index, num_elements, num_frames) for index, frame in enumerate(vid) if index >= 1 and index <= num_frames - 2)
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
         heap = [] # Process results as they become available
         for result in result_iterator:
@@ -218,12 +202,13 @@ def process_images(video_path, encoding_map_path):
 
     for index, frame in enumerate(vid):
         if index == num_frames - 1:
-            frame_result = process_frame((frame, encoding_color_map, num_frames - 1, num_elements, num_frames, shared_data))
+            frame_result = process_frame((frame, encoding_color_map, num_frames - 1, num_elements, num_frames))
             results.append(frame_result)
             next_frame_to_write += 1
             pbar.update(1)
             break
 
+    # Single Threaded Decoding
     # results = []
     # for index, frame in enumerate(vid):
     #     processed_frame = process_frame((frame, encoding_color_map, index, num_frames), reference_data)
