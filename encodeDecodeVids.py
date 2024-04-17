@@ -16,7 +16,7 @@ def file_to_binary():
     for file_name in os.listdir(dir_path):
         if file_name.endswith('.mkv'):
             print(file_name)
-            file_name=file_name
+            file_name = file_name
             break
     file_size = os.path.getsize(file_name)
 
@@ -201,13 +201,14 @@ def youtube_video_downloader(url):
     stream.download()
 
 
-input_Data=input("convert file to video press 1 and Enter  \nconvert video to file press 2  and Enter\nDownload video from youtube press 3 and Enter\n" )
+input_Data = input(
+    "convert file to video press 1 and Enter  \nconvert video to file press 2  and Enter\nDownload video from youtube press 3 and Enter\n")
 
-if (input_Data=="1"):
+if (input_Data == "1"):
     binary_to_video(file_to_binary())
-elif(input_Data=="2"):
+elif (input_Data == "2"):
     binaryToFile(process_images(ExtractFrames()))
-elif(input_Data=="3"):
+elif (input_Data == "3"):
     youtube_video_downloader(input("Enter Url "))
 else:
     print("404")
