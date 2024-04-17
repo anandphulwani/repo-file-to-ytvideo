@@ -12,29 +12,9 @@ import cv2
 import heapq
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
+from libs.file_codec import file_to_encodeddata
 
 config = load_config('config.ini')
-
-def detect_base_from_json():
-    # Load and check the JSON encoding map
-    with open(config['encoding_map_path'], 'r') as file:
-        encoding_map = json.load(file)
-    base = len(encoding_map)
-
-    # Map the base to its corresponding function
-    base_functions = {
-        2: bin,
-        8: oct,
-        10: lambda x: str(x),
-        16: hex,
-        64: lambda x: base64.b64encode(x).decode('utf-8')
-    }
-
-    if base in base_functions:
-        return base, base_functions[base]
-    else:
-        print("Unsupported base detected in JSON encoding map.")
-        sys.exit(1)
 
 def generate_frame_args(cap, config, frame_data_iter, total_frames, total_binary_length, encoding_color_map):
     frame_index = 0
@@ -47,38 +27,6 @@ def generate_frame_args(cap, config, frame_data_iter, total_frames, total_binary
         frame_data = next(frame_data_iter, None)
         yield (frame, config, encoding_color_map, frame_data, frame_index, total_frames, total_binary_length)
         frame_index += 1
-        
-def file_to_encodeddata(file_path):
-    base, base_function = detect_base_from_json()
-    print(f"Base is {base}")
-
-    if not os.path.exists(file_path):
-        print("The specified file does not exist.")
-        sys.exit(1)
-
-    # Read the file content
-    with open(file_path, "rb") as file:
-        file_content = file.read()
-
-    # Convert the file content based on the detected base
-    if base == 64:  # Directly encode for base64
-        encoded_data = base_function(file_content)
-    else:
-        # For other bases, encode each byte individually
-        encoded_data = "".join(f"{byte:08b}" for byte in file_content)
-        # encoded_data = "".join(base_function(byte)[2:] for byte in file_content)
-
-    # with open(f"{file_path}_stream.txt", "w") as file:
-    #     file.write(encoded_data)
-    
-    total_binary_length = len(encoded_data)
-    
-    paddedleft20_total_binary_length = str(total_binary_length).zfill(20)
-    paddedleft20_total_binary_length_binary = ''.join(format(ord(char), '08b') for char in paddedleft20_total_binary_length)
-    encoded_data =  "".join([paddedleft20_total_binary_length_binary, encoded_data])
-    
-    bits_per_frame = config['bits_per_frame']
-    return [encoded_data[i:i + bits_per_frame] for i in range(0, len(encoded_data), bits_per_frame)]
 
 def encode_frame(args):
     frame, config, encoding_color_map, frame_data, frame_index, total_frames, total_binary_length = args
@@ -115,7 +63,7 @@ def encode_frame(args):
 def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
-    encoded_data = file_to_encodeddata(file_path)
+    encoded_data = file_to_encodeddata(file_path, config['bits_per_frame'])
     print('Encoding done.')
 
     cap = cv2.VideoCapture(config['bgr_video_path'])
@@ -148,7 +96,8 @@ def process_video_frames(file_path, config):
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
                 _, frame_to_write = heapq.heappop(heap)
-                out.write(frame_to_write)
+                for _ in range(config['repeat_same_frame']):
+                    out.write(frame_to_write)
                 next_frame_to_write += 1
                 pbar.update(1)
 

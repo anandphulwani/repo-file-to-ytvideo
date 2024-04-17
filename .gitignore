@@ -5,3 +5,4 @@
 *.iso
 *.rar
 *.zip
+/libs/__pycache__
