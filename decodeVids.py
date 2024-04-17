@@ -1,4 +1,5 @@
 # from moviepy.editor import VideoFileClip
+import configparser
 import numpy as np
 import json
 import math
@@ -7,30 +8,15 @@ import sys
 import imageio
 import subprocess
 import cv2
+import heapq
 from tqdm import tqdm
 from pytube import YouTube
 from statistics import mode, StatisticsError
 from multiprocessing import Pool, cpu_count
 # import multiprocessing
-import heapq
+from libs.config_loader import load_config
 
-padding = 80
-buffer_padding = 20
-frame_width = 1920
-frame_height = 1080
-
-skip_seconds = 0
-
-start_width = padding + buffer_padding
-end_width = frame_width - padding - buffer_padding
-
-start_height = padding + buffer_padding
-end_height = frame_height - 1 - padding - buffer_padding
-
-usable_width = ( end_width - start_width ) // 2
-usable_height = ( end_height - start_height ) // 2
-
-bits_per_frame = math.floor((usable_width * usable_height) / 8) * 8
+config = load_config('config.ini')
 
 # def average_colors(color1, color2, color3, color4, color5, color6):
 #     avg_red = (int(color1[0]) + int(color2[0]) + int(color3[0]) + int(color4[0]) + int(color5[0]) + int(color6[0])) // 6
@@ -119,9 +105,8 @@ def process_frame(frame_details):
     global num_elements
     frame, encoding_color_map, frame_index, num_elements, num_frames = frame_details
     
-    data_index = 0
     if frame_index == (num_frames - 1):
-        data_index = bits_per_frame * frame_index
+        data_index = config['bits_per_frame'] * frame_index
     
     num_elements_binary = ''
     bit_buffer = ''
@@ -130,10 +115,10 @@ def process_frame(frame_details):
 
     bits_used_in_frame = 0
 
-    y = start_height
-    while y < end_height:
-        for x in range(start_width, end_width, 2):
-            if bits_used_in_frame >= bits_per_frame or \
+    y = config['start_height']
+    while y < config['end_height']:
+        for x in range(config['start_width'], config['end_width'], 2):
+            if bits_used_in_frame >= config['bits_per_frame'] or \
                 (frame_index == (num_frames - 1) and num_elements != 0 and data_index >= num_elements):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
@@ -154,10 +139,11 @@ def process_frame(frame_details):
                 if len(bit_buffer) == 8:
                     output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
                     bit_buffer = ''
-                data_index += 1
+                if frame_index == (num_frames - 1):
+                    data_index += 1
             bits_used_in_frame += 1
         y += 2
-        if bits_used_in_frame >= bits_per_frame or \
+        if bits_used_in_frame >= config['bits_per_frame'] or \
             (frame_index == (num_frames - 1) and num_elements != 0 and data_index >= num_elements):
             break
     return frame_index, output_data
@@ -188,7 +174,7 @@ def process_images(video_path, encoding_map_path):
             break
 
     # Create a multiprocessing pool to process the remaining frames except the last one
-    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+    with Pool(cpu_count()) as pool:
         frame_iterator = ((frame, encoding_color_map, index, num_elements, num_frames) for index, frame in enumerate(vid) if index >= 1 and index <= num_frames - 2)
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
         heap = [] # Process results as they become available
@@ -208,13 +194,6 @@ def process_images(video_path, encoding_map_path):
             pbar.update(1)
             break
 
-    # Single Threaded Decoding
-    # results = []
-    # for index, frame in enumerate(vid):
-    #     processed_frame = process_frame((frame, encoding_color_map, index, num_frames), reference_data)
-    #     results.append(processed_frame)
-    #     pbar.update(1)
-    
     pbar.close()
     with open("file_rev.exe", 'wb') as binary_output_file:
         for _, frame_data in sorted(results):
