@@ -124,30 +124,6 @@ def process_images(frames):
     # Store the binary string in a single text file
     return binary_digits
 
-
-def imageToText():
-    # function to convert a file to binary format and store it in a text file
-    def file_to_binary(filename):
-        # read file as binary
-        with open(filename, "rb") as f:
-            binary_data = f.read()
-
-        # convert binary data to string of 0's and 1's
-        binary_string = "".join(f"{byte:08b}" for byte in binary_data)
-
-        # write binary string to text file
-        with open("binary.txt", "w") as f:
-            f.write(binary_string)
-
-        print(f"File converted to binary format and stored in binary.txt")
-
-    # prompt user to enter filename
-    filename = input("Enter the name of the file to convert: ")
-
-    # call function to convert file to binary format
-    file_to_binary(filename)
-
-
 def binaryToFile(binary_filename):
     # convert binary string to binary data
     binary_data = bytes(int(binary_filename[i:i+8], 2)
