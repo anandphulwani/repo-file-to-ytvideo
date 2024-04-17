@@ -1,114 +1,48 @@
-# from moviepy.editor import VideoFileClip
-import configparser
-import numpy as np
 import json
 import math
-import base64
-import sys
 import imageio
-import subprocess
-import cv2
 import heapq
 from tqdm import tqdm
-from pytube import YouTube
-from statistics import mode, StatisticsError
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Manager
 # import multiprocessing
 from libs.config_loader import load_config
+from libs.downloadFromYT import downloadFromYT
+from libs.determine_color_key import determine_color_key
 
 config = load_config('config.ini')
 
-# def average_colors(color1, color2, color3, color4, color5, color6):
-#     avg_red = (int(color1[0]) + int(color2[0]) + int(color3[0]) + int(color4[0]) + int(color5[0]) + int(color6[0])) // 6
-#     avg_green = (int(color1[1]) + int(color2[1]) + int(color3[1]) + int(color4[1]) + int(color5[1]) + int(color6[1])) // 6
-#     avg_blue = (int(color1[2]) + int(color2[2]) + int(color3[2]) + int(color4[2]) + int(color5[2]) + int(color6[2])) // 6
-#     return (avg_red, avg_green, avg_blue)
+def writer_process(write_queue, file_path):
+    # count = 0
+    with open(file_path, 'wb') as binary_output_file:
+        while True:
+            item = write_queue.get(True)  # This will block until an item is available
+            if item is None:  # Check for the termination signal
+                break
+            frame_index, data = item
+            # if frame_index >= 5645:
+            #     print(f"frame_index: {frame_index}")
+            # count += 1
+            # print(f'WRITERPROCESS: frame_index: {count}')
+            try:
+                for byte_data in data:
+                    binary_output_file.write(byte_data)
+            except Exception as e:
+                print(f"Error writing data: {e} on frame_index: {frame_index}")
+                break  # Exit on error
 
-def get_total_frames(video_path):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError("Error opening video file")
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    cap.release()
-    return total_frames
-
-def average_colors(color1, color2, color3, color4):
-    avg_red = (int(color1[0]) + int(color2[0]) + int(color3[0]) + int(color4[0])) // 4
-    avg_green = (int(color1[1]) + int(color2[1]) + int(color3[1]) + int(color4[1])) // 4
-    avg_blue = (int(color1[2]) + int(color2[2]) + int(color3[2]) + int(color4[2])) // 4
-    return (avg_red, avg_green, avg_blue)
-
-def find_nearest_tuple(color_tuples):
-    transformed = [0 if t[0] < 103 else 1 for t in color_tuples if t[0] < 103 or t[0] > 153]
-    try:
-        dominant_category = mode(transformed)
-    except StatisticsError:
-        print(f"color_tuples: {color_tuples}")
-        sys.exit(1)
-    return (0, 0, 0) if dominant_category == 0 else (255, 255, 255)
-
-def detect_base_from_json(encoding_map_path):
-    # Identical function from your encoder script
-    # Load and check the JSON encoding map
-    with open(encoding_map_path, 'r') as file:
-        encoding_map = json.load(file)
-    base = len(encoding_map)
-    return base
-
-def find_nearest_color(pixel_color, encoding_color_map):
-    color_map_rgb = {key: tuple(int(encoding_color_map[key][i:i+2], 16) for i in (1, 3, 5)) for key in encoding_color_map}
-    min_distance = float('inf')
-    nearest_color_key = None
-    for key, value in color_map_rgb.items():
-        distance = np.linalg.norm(np.array(pixel_color) - np.array(value))
-        if distance < min_distance:
-            min_distance = distance
-            nearest_color_key = key
-    return nearest_color_key
-
-def determine_color_key(frame, x, y, encoding_color_map): 
-    nearest_color_key = ''
-    colorX1Y1 = tuple(frame[y, x])
-    colorX1Y2 = ''
-    colorX2Y1 = ''
-    colorX2Y2 = ''
-    if colorX1Y1[0] <= 50 and colorX1Y1[1] <= 50 and colorX1Y1[2] <= 50:
-        nearest_color_key = "0"
-    elif colorX1Y1[0] >= 200 and colorX1Y1[1] >= 200 and colorX1Y1[2] >= 200:
-        nearest_color_key = "1"
-    else:
-        colorX1Y2 = tuple(frame[y + 1, x])
-        if colorX1Y2[0] <= 50 and colorX1Y2[1] <= 50 and colorX1Y2[2] <= 50:
-            nearest_color_key = "0"
-        elif colorX1Y2[0] >= 200 and colorX1Y2[1] >= 200 and colorX1Y2[2] >= 200:
-            nearest_color_key = "1"
-        else:
-            colorX2Y1 = tuple(frame[y, x + 1])
-            if colorX2Y1[0] <= 50 and colorX2Y1[1] <= 50 and colorX2Y1[2] <= 50:
-                nearest_color_key = "0"
-            elif colorX2Y1[0] >= 200 and colorX2Y1[1] >= 200 and colorX2Y1[2] >= 200:
-                nearest_color_key = "1"
-            else:
-                colorX2Y2 = tuple(frame[y + 1, x + 1])
-                if colorX2Y2[0] <= 50 and colorX2Y2[1] <= 50 and colorX2Y2[2] <= 50:
-                    nearest_color_key = "0"
-                elif colorX2Y2[0] >= 200 and colorX2Y2[1] >= 200 and colorX2Y2[2] >= 200:
-                    nearest_color_key = "1"
-                else:
-                    color = average_colors(colorX1Y1, colorX1Y2, colorX2Y1, colorX2Y2)
-                    nearest_color_key = find_nearest_color(color, encoding_color_map)
-    return nearest_color_key    
-
-num_elements = 0
+total_binary_length = 0
 
 def process_frame(frame_details):
-    global num_elements
-    frame, encoding_color_map, frame_index, num_elements, num_frames = frame_details
+    global total_binary_length
+    frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
+    # print (f'frame_index: {frame_index}, num_frames: {num_frames}')
     
-    if frame_index == (num_frames - 1):
-        data_index = config['bits_per_frame'] * frame_index
+    if frame_index >= (num_frames - frame_step):
+        # print(f'frame_index ({frame_index}) >= (num_frames({num_frames}) - frame_step({frame_step})')
+        data_index = config['bits_per_frame'] * math.floor(frame_index / frame_step)
+        # print(f'data_index({data_index}) = config[bits_per_frame]({config['bits_per_frame']})  * (frame_index({frame_index}) / frame_step({frame_step}))')
     
-    num_elements_binary = ''
+    total_binary_length_binary = ''
     bit_buffer = ''
     
     output_data = []
@@ -118,16 +52,18 @@ def process_frame(frame_details):
     y = config['start_height']
     while y < config['end_height']:
         for x in range(config['start_width'], config['end_width'], 2):
+            # if frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length:
+            #     print(f'01. Breaking because of data index exceeded, frame_index({frame_index}) >= num_frames - frame_step({num_frames - frame_step}), data_index({data_index}) >= total_binary_length({total_binary_length})')
             if bits_used_in_frame >= config['bits_per_frame'] or \
-                (frame_index == (num_frames - 1) and num_elements != 0 and data_index >= num_elements):
+                (frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
-            if num_elements == 0:
-                num_elements_binary += nearest_color_key
-                if len(num_elements_binary) == 160:
-                    num_elements = ''.join(chr(int(num_elements_binary[i:i+8], 2)) for i in range(0, len(num_elements_binary), 8))
-                    num_elements = int(num_elements) + 160
-                    # print(num_elements)
+            if total_binary_length == 0:
+                total_binary_length_binary += nearest_color_key
+                if len(total_binary_length_binary) == 160:
+                    total_binary_length = ''.join(chr(int(total_binary_length_binary[i:i+8], 2)) for i in range(0, len(total_binary_length_binary), 8))
+                    total_binary_length = int(total_binary_length) + 160
+                    # print(total_binary_length)
             else:
                 bit_buffer += nearest_color_key
                 # if reference_data[data_index:data_index+1] != nearest_color_key:
@@ -139,17 +75,19 @@ def process_frame(frame_details):
                 if len(bit_buffer) == 8:
                     output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
                     bit_buffer = ''
-                if frame_index == (num_frames - 1):
+                if frame_index >= (num_frames - frame_step):
                     data_index += 1
             bits_used_in_frame += 1
         y += 2
+        # if frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length:
+        #     print(f'02. Breaking because of data index exceeded, frame_index({frame_index}) >= num_frames - frame_step({num_frames - frame_step}), data_index({data_index}) >= total_binary_length({total_binary_length})')
         if bits_used_in_frame >= config['bits_per_frame'] or \
-            (frame_index == (num_frames - 1) and num_elements != 0 and data_index >= num_elements):
+            (frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length):
             break
     return frame_index, output_data
 
 def process_images(video_path, encoding_map_path):
-    global num_elements
+    global total_binary_length
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
@@ -159,109 +97,60 @@ def process_images(video_path, encoding_map_path):
     vid = imageio.get_reader(video_path, 'ffmpeg')
     num_frames = vid.count_frames() # get_total_frames(video_path)
     
-    results = []
-    heap = []
-    next_frame_to_write = 0
-
-    pbar = tqdm(total=num_frames, desc="Processing Frames")
+    # Retrieve metadata
+    metadata = vid.get_meta_data()
+    fps = int(metadata['fps'])
+    # print(f'fps: {fps}')
+    # frame_step = int(fps // config['repeat_same_frame'])
+    frame_step = config['repeat_same_frame']
+    frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
+    # print(f'fps: {fps}')
     
-    for index, frame in enumerate(vid):
-        if index == 0:
-            frame_result = process_frame((frame, encoding_color_map, 0, 0, num_frames))
-            results.append(frame_result)
-            next_frame_to_write = 1
-            pbar.update(1)
-            break
+    manager = Manager()
+    write_queue = manager.Queue()
+    heap = []
+    
+    pbar = tqdm(total=int(num_frames / frame_step), desc="Processing Frames")
+    
+    # First frame processing
+    return_value = process_frame((vid.get_data(frame_start), encoding_color_map, 0, frame_step, 0, num_frames))
+    write_queue.put(return_value)
+    pbar.update(1)
+    
+    frame_start += frame_step
+    next_frame_to_write = frame_start
 
-    # Create a multiprocessing pool to process the remaining frames except the last one
+    heap = [] # Process results as they become available
+    
+    # Create a multiprocessing pool to process the remaining frames except the first and last one
+    writer_pool = Pool(1)
+    writer_pool.apply_async(writer_process, (write_queue, "file_rev.exe"))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((frame, encoding_color_map, index, num_elements, num_frames) for index, frame in enumerate(vid) if index >= 1 and index <= num_frames - 2)
+        # frame_iterator = ((frame, encoding_color_map, index, frame_step, total_binary_length, num_frames) for index, frame in enumerate(vid) if index >= 1 and index <= num_frames - 2)
+        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, total_binary_length, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
-        heap = [] # Process results as they become available
+        
         for result in result_iterator:
+            # pbar.update(1)
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
-                ready_to_write = heapq.heappop(heap)
-                results.append(ready_to_write)
-                next_frame_to_write += 1
+                return_value = heapq.heappop(heap)
+                write_queue.put(return_value)
+                next_frame_to_write += frame_step
                 pbar.update(1)
+        pool.close()
+        pool.join()
 
-    for index, frame in enumerate(vid):
-        if index == num_frames - 1:
-            frame_result = process_frame((frame, encoding_color_map, num_frames - 1, num_elements, num_frames))
-            results.append(frame_result)
-            next_frame_to_write += 1
-            pbar.update(1)
-            break
+    # Last frame processing
+    return_value = process_frame((vid.get_data(num_frames - 1), encoding_color_map, num_frames - 1, frame_step, total_binary_length, num_frames))
+    write_queue.put(return_value)
+    pbar.update(1)
 
-    pbar.close()
-    with open("file_rev.exe", 'wb') as binary_output_file:
-        for _, frame_data in sorted(results):
-            for data in frame_data:
-                binary_output_file.write(data)
-
-def encodeddata_to_file(encoded_data, video_path, encoding_map_path='encoding_color_map.json'):
-    base = detect_base_from_json(encoding_map_path)
-    if base == 64:
-        binary_data = base64.b64decode(encoded_data)
-    else:
-        base_functions = {
-            2: lambda x: int(x, 2),
-            8: lambda x: int(x, 8),
-            10: lambda x: int(x, 10),
-            16: lambda x: int(x, 16),
-        }
-        
-        # Determine the size of each segment based on the base, because the encoded data length for each byte can vary with base
-        segment_length = {
-            2: 8,  # 1 byte = 8 bits
-            8: 3,  # 1 byte = up to 3 octal digits
-            10: 3, # This is more complex as it doesn't align neatly; likely needs special handling
-            16: 2,  # 1 byte = 2 hexadecimal digits
-        }
-
-        if base == 10: # Special handling for base 10 (variable length encoding)
-            # Assuming decimal encoded data is separated by a non-numeric character, e.g., ","
-            # This is a simplification; real implementation might need to consider how data was encoded
-            segments = encoded_data.split(',')
-            binary_data = bytes(int(segment) for segment in segments)
-        else:
-            binary_data = bytes(base_functions[base](encoded_data[i:i+segment_length[base]]) for i in range(0, len(encoded_data), segment_length[base]))
-
-    # Write binary data to output file
-    with open(f"file_reverse.exe", "wb") as f:
-        with tqdm(total=len(binary_data), unit='B', unit_scale=True, desc=f"Writing binary data to {video_path}_reverse.rev") as pbar:
-            for chunk in range(0, len(binary_data), 1024):
-                f.write(binary_data[chunk:chunk+1024])
-                pbar.update(min(1024, len(binary_data) - chunk))
-
-    print(f"Encoded data converted back to {video_path}_reverse.rev")
-
-def get_resolution(s):
-    return int(s.resolution[:-1])
-
-def downloadFromYT(url, format_code = '270'):
-    command = ['yt-dlp', '-F', url]
-    try:
-        output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        print(output.stdout.decode())
-    except subprocess.CalledProcessError as e:
-        print("Error listing formats:", e.stderr.decode())
-        return None
+    write_queue.put(None)
+    writer_pool.close()
+    writer_pool.join()
     
-    command = [
-        'yt-dlp',
-        '-f', format_code,
-        '--merge-output-format', 'mp4',
-        '-o', 'video_downloaded.mp4',
-        url
-    ]
-
-    try:
-        subprocess.run(command, check=True)
-        print(f"Downloaded video in format {format_code}.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error downloading the video in format {format_code}:", e.stderr.decode())
+    pbar.close()
 
 if __name__ == "__main__":                        
     video_url = input("Please enter the URL to the video file: ")
@@ -273,10 +162,10 @@ if __name__ == "__main__":
         print("in here")
         encoding_map_path = 'encoding_color_map.json'  # Default path
 
-    # process_images(ExtractFrames('video_downloaded.mp4'), encoding_map_path)
-    process_images('video_downloaded.mkv', encoding_map_path)
+    # process_images(ExtractFrames('video_downloaded'), encoding_map_path)
+    process_images('video_downloaded.mp4', encoding_map_path)
     
-    # process_images(ExtractFrames('video_downloaded.mp4'), 'encoding_color_map.json')
+    # process_images(ExtractFrames('video_downloaded'), 'encoding_color_map.json')
     
     # Write the decoded bytes to the output file
     # with open(f"", "w") as file:

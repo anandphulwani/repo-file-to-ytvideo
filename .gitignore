@@ -9,3 +9,4 @@
 *.bk
 *.temp
 *.tmp
+/libs/__pycache__
