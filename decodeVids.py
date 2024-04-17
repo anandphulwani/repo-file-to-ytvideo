@@ -1,6 +1,7 @@
 from moviepy.editor import VideoFileClip
 import numpy as np
 import json
+import time
 import base64
 import sys
 import imageio
@@ -9,13 +10,39 @@ import cv2
 from tqdm import tqdm
 from pytube import YouTube
 from statistics import mode, StatisticsError
-from multiprocessing import Pool, cpu_count
+# from multiprocessing import Pool, cpu_count
+import multiprocessing
+from queue import Queue
+from threading import Thread
+from collections import OrderedDict
+import heapq
 
 # def average_colors(color1, color2, color3, color4, color5, color6):
 #     avg_red = (int(color1[0]) + int(color2[0]) + int(color3[0]) + int(color4[0]) + int(color5[0]) + int(color6[0])) // 6
 #     avg_green = (int(color1[1]) + int(color2[1]) + int(color3[1]) + int(color4[1]) + int(color5[1]) + int(color6[1])) // 6
 #     avg_blue = (int(color1[2]) + int(color2[2]) + int(color3[2]) + int(color4[2]) + int(color5[2]) + int(color6[2])) // 6
 #     return (avg_red, avg_green, avg_blue)
+
+def get_total_frames(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError("Error opening video file")
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    return total_frames
+
+# def get_total_frames(video_path):
+#     vid = imageio.get_reader(video_path, 'ffmpeg')
+#     try:
+#         # Attempt to access metadata directly
+#         num_frames = vid.get_meta_data()['nframes']
+#     except KeyError:
+#         # Calculate frames if direct metadata is not available
+#         meta = vid.get_meta_data()
+#         duration = meta['duration']
+#         fps = meta['fps']
+#         num_frames = int(duration * fps)
+#     return num_frames
 
 def average_colors(color1, color2, color3, color4):
     avg_red = (int(color1[0]) + int(color2[0]) + int(color3[0]) + int(color4[0])) // 4
@@ -51,115 +78,114 @@ def find_nearest_color(pixel_color, encoding_color_map):
             nearest_color_key = key
     return nearest_color_key
 
-def process_images(frames, encoding_map_path, frame_width = 1920, frame_height = 1080):
+
+def determine_color_key(frame, x, y, encoding_color_map): 
+    nearest_color_key = ''
+    colorX1Y1 = tuple(frame[y, x])
+    colorX1Y2 = ''
+    colorX2Y1 = ''
+    colorX2Y2 = ''
+    if colorX1Y1[0] <= 50 and colorX1Y1[1] <= 50 and colorX1Y1[2] <= 50:
+        nearest_color_key = "0"
+    elif colorX1Y1[0] >= 200 and colorX1Y1[1] >= 200 and colorX1Y1[2] >= 200:
+        nearest_color_key = "1"
+    else:
+        colorX1Y2 = tuple(frame[y + 1, x])
+        if colorX1Y2[0] <= 50 and colorX1Y2[1] <= 50 and colorX1Y2[2] <= 50:
+            nearest_color_key = "0"
+        elif colorX1Y2[0] >= 200 and colorX1Y2[1] >= 200 and colorX1Y2[2] >= 200:
+            nearest_color_key = "1"
+        else:
+            colorX2Y1 = tuple(frame[y, x + 1])
+            if colorX2Y1[0] <= 50 and colorX2Y1[1] <= 50 and colorX2Y1[2] <= 50:
+                nearest_color_key = "0"
+            elif colorX2Y1[0] >= 200 and colorX2Y1[1] >= 200 and colorX2Y1[2] >= 200:
+                nearest_color_key = "1"
+            else:
+                colorX2Y2 = tuple(frame[y + 1, x + 1])
+                if colorX2Y2[0] <= 50 and colorX2Y2[1] <= 50 and colorX2Y2[2] <= 50:
+                    nearest_color_key = "0"
+                elif colorX2Y2[0] >= 200 and colorX2Y2[1] >= 200 and colorX2Y2[2] >= 200:
+                    nearest_color_key = "1"
+                else:
+                    color = average_colors(colorX1Y1, colorX1Y2, colorX2Y1, colorX2Y2)
+                    nearest_color_key = find_nearest_color(color, encoding_color_map)
+    return nearest_color_key    
+
+def process_frame(frame_details):
+    frame, encoding_color_map, frame_index, frame_width, frame_height = frame_details
+    padding = 80
+    buffer_padding = 20
+    bit_buffer = ''
+    num_elements = 0
+    num_elements_binary = ''
+    output_data = []
+
+    y = padding + buffer_padding
+    end_offset = frame_height - 1 - padding - buffer_padding
+    while y < end_offset:
+        for x in range(padding + buffer_padding, frame_width - padding - buffer_padding, 2):
+            nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
+            if num_elements == 0:
+                num_elements_binary += nearest_color_key
+                if len(num_elements_binary) == 160:
+                    num_elements = int(num_elements_binary, 2)
+            else:
+                bit_buffer += nearest_color_key
+                if len(bit_buffer) == 8:
+                    output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
+                    bit_buffer = ''
+        y += 2
+    return frame_index, output_data
+
+def process_images(video_path, encoding_map_path, frame_width=1920, frame_height=1080):
+    # Load encoding map from file
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
-    padding = 80
-    buffer_padding = 20
-
-    num_elements = 0
-    num_elements_binary = ''
-    
-    bit_buffer = ''
-
-    # with open("vlc.exe_stream.txt", 'r') as original_stream, open("vlc.exe_reverse_stream.txt", 'w') as output_file, open("file_rev.exe", 'wb') as binary_output_file:
-    # with open("vlc.exe_stream.txt", 'r') as original_stream, open("file_rev.exe", 'wb') as binary_output_file:
-    with open("file_rev.exe", 'wb') as binary_output_file:
-        data_index = 0  # To keep track of the position in the original stream
-        for frame_index, frame in enumerate(tqdm(frames, desc="Processing frames")):
-                # if frame_index == 350:
-                #     print("Written here")
-                #     cv2.imwrite('output_image.png', frame)
-                
-                y = padding + buffer_padding
-                end_offset = frame_height - 1 - padding - buffer_padding
-                # print(f"y: {y}, end_offset: {end_offset}")
-                
-                while  y < end_offset:    
-                    for x in range(0 + padding + buffer_padding, frame_width - padding - buffer_padding, 2):
-                        if num_elements != 0 and data_index >= num_elements + 160:
-                            print("I am breaking here now")
-                            break
-                        
-                        nearest_color_key = ''
-                        colorX1Y1 = tuple(frame[y, x])
-                        colorX1Y2 = ''
-                        colorX2Y1 = ''
-                        colorX2Y2 = ''
-                        if colorX1Y1[0] <= 50 and colorX1Y1[1] <= 50 and colorX1Y1[2] <= 50:
-                            nearest_color_key = "0"
-                        elif colorX1Y1[0] >= 200 and colorX1Y1[1] >= 200 and colorX1Y1[2] >= 200:
-                            nearest_color_key = "1"
-                        else:
-                            colorX1Y2 = tuple(frame[y + 1, x])
-                            if colorX1Y2[0] <= 50 and colorX1Y2[1] <= 50 and colorX1Y2[2] <= 50:
-                                nearest_color_key = "0"
-                            elif colorX1Y2[0] >= 200 and colorX1Y2[1] >= 200 and colorX1Y2[2] >= 200:
-                                nearest_color_key = "1"
-                            else:
-                                colorX2Y1 = tuple(frame[y, x + 1])
-                                if colorX2Y1[0] <= 50 and colorX2Y1[1] <= 50 and colorX2Y1[2] <= 50:
-                                    nearest_color_key = "0"
-                                elif colorX2Y1[0] >= 200 and colorX2Y1[1] >= 200 and colorX2Y1[2] >= 200:
-                                    nearest_color_key = "1"
-                                else:
-                                    colorX2Y2 = tuple(frame[y + 1, x + 1])
-                                    if colorX2Y2[0] <= 50 and colorX2Y2[1] <= 50 and colorX2Y2[2] <= 50:
-                                        nearest_color_key = "0"
-                                    elif colorX2Y2[0] >= 200 and colorX2Y2[1] >= 200 and colorX2Y2[2] >= 200:
-                                        nearest_color_key = "1"
-                                    else:
-                                        color = average_colors(colorX1Y1, colorX1Y2, colorX2Y1, colorX2Y2)
-                                        nearest_color_key = find_nearest_color(color, encoding_color_map)
-                        
-                        if num_elements == 0:
-                            num_elements_binary += nearest_color_key
-                            if len(num_elements_binary) == 160:
-                                num_elements = ''.join(chr(int(num_elements_binary[i:i+8], 2)) for i in range(0, len(num_elements_binary), 8))
-                                num_elements = int(num_elements)
-                                print(num_elements)
-                        else:
-                            bit_buffer += nearest_color_key
-                            if len(bit_buffer) == 8:
-                                binary_output_file.write(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
-                                bit_buffer = ''        
-                        
-                            # original_char = original_stream.read(1)
-                            # if not original_char:
-                            #     print("End of original stream reached.")
-                            #     sys.exit(1)
-                                
-                            # output_file.write(nearest_color_key)
-
-                            # if nearest_color_key != original_char:
-                            #     cv2.imwrite('img_error.png', frame)
-                            #     print(f"Mismatch found y:{y}, x:{x} at index {data_index}: expected '{original_char}', got '{nearest_color_key}'")
-                            #     print(f"colorX1Y1: {colorX1Y1}, {tuple(frame[y, x])}")
-                            #     print(f"colorX1Y2: {colorX1Y2}, {tuple(frame[y + 1, x])}")
-                            #     print(f"colorX2Y1: {colorX2Y1}, {tuple(frame[y, x + 1])}")
-                            #     print(f"colorX2Y2: {colorX2Y2}, {tuple(frame[y + 1, x + 1])}")
-                            #     # print(f"colorX3Y1: {colorX2Y1}, {tuple(frame[y, x + 2])}")
-                            #     # print(f"colorX3Y2: {colorX2Y2}, {tuple(frame[y + 1, x + 2])}")
-                            #     sys.exit(1)
-                        data_index += 1
-                    y += 2
-            
-def ExtractFrames(video_path):
-    am = []
+    # Open the video file
     vid = imageio.get_reader(video_path, 'ffmpeg')
-    # fps = vid.get_meta_data()['fps']
-    num_frames = vid.get_length()
-    with tqdm(total=num_frames) as pbar:
-        for i, frame in enumerate(vid):
-            # # if i == 360 * 6:
-            # #     break
-            # # if i % 6 == 5:
-            # if i % 2 == 1:
-            #     am.append(frame)
-            am.append(frame)
-            pbar.update(1)
-    return am
+    num_frames = get_total_frames(video_path)
+
+    frames = [(frame, encoding_color_map, index, frame_width, frame_height) for index, frame in enumerate(vid)]
+
+    results = []
+    heap = []
+    next_frame_to_write = 0
+
+    with tqdm(total=num_frames, desc="Processing Frames") as pbar:
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            for result in pool.imap_unordered(process_frame, frames):
+                # Using a heap to store results as they come in
+                heapq.heappush(heap, result)
+                
+                # Check if the next frame in order is available
+                while heap and heap[0][0] == next_frame_to_write:
+                    ready_to_write = heapq.heappop(heap)
+                    results.append(ready_to_write)
+                    next_frame_to_write += 1
+                    pbar.update(1)
+
+    with open("file_rev.exe", 'wb') as binary_output_file:
+        for _, frame_data in sorted(results):
+            for data in frame_data:
+                binary_output_file.write(data)
+
+# def ExtractFrames(video_path):
+#     am = []
+#     vid = imageio.get_reader(video_path, 'ffmpeg')
+#     # fps = vid.get_meta_data()['fps']
+#     num_frames = vid.get_length()
+#     with tqdm(total=num_frames) as pbar:
+#         for i, frame in enumerate(vid):
+#             # # if i == 360 * 6:
+#             # #     break
+#             # # if i % 6 == 5:
+#             # if i % 2 == 1:
+#             #     am.append(frame)
+#             am.append(frame)
+#             pbar.update(1)
+#     return am
 
 def encodeddata_to_file(encoded_data, video_path, encoding_map_path='encoding_color_map.json'):
     base = detect_base_from_json(encoding_map_path)
@@ -234,10 +260,10 @@ if __name__ == "__main__":
         print("in here")
         encoding_map_path = 'encoding_color_map.json'  # Default path
 
-    process_images(ExtractFrames('video_downloaded.mp4'), encoding_map_path)
+    # process_images(ExtractFrames('video_downloaded.mp4'), encoding_map_path)
+    process_images('video_downloaded.mp4', encoding_map_path)
     
-    # frames = ExtractFrames('video_downloaded.mp4')
-    # process_images(frames, 'encoding_color_map.json')
+    # process_images(ExtractFrames('video_downloaded.mp4'), 'encoding_color_map.json')
     
     # Write the decoded bytes to the output file
     # with open(f"", "w") as file:
