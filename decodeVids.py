@@ -155,18 +155,9 @@ def process_images(video_path, encoding_map_path):
 if __name__ == "__main__":                        
     video_url = input("Please enter the URL to the video file: ")
     downloadFromYT(video_url)
-    
-    # encoding_map_path = input("Please enter the path to the encoding color map JSON file (press enter to use default): ")
-    encoding_map_path = ""
-    if not encoding_map_path.strip():
-        print("in here")
-        encoding_map_path = 'encoding_color_map.json'  # Default path
 
-    # process_images(ExtractFrames('video_downloaded'), encoding_map_path)
-    process_images('video_downloaded.mp4', encoding_map_path)
-    
-    # process_images(ExtractFrames('video_downloaded'), 'encoding_color_map.json')
-    
+    process_images('video_downloaded.mp4', config['encoding_map_path'])
+        
     # Write the decoded bytes to the output file
     # with open(f"", "w") as file:
     #     file.write(encoded_data)

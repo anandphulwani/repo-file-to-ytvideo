@@ -63,7 +63,8 @@ def encode_frame(args):
 def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
-    encoded_data = file_to_encodeddata(file_path, config['bits_per_frame'])
+
+    encoded_data = file_to_encodeddata(config, file_path)
     print('Encoding done.')
 
     cap = cv2.VideoCapture(config['bgr_video_path'])
