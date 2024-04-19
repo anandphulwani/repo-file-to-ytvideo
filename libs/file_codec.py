@@ -41,8 +41,10 @@ def encodeddata_to_file(encoded_data, video_path, encoding_map_path='encoding_co
 
     print(f"Encoded data converted back to {video_path}_reverse.rev")
      
-def file_to_encodeddata(file_path, bits_per_frame):
-    base, base_function = detect_base_from_json()
+def file_to_encodeddata(config, file_path):
+    bits_per_frame = config['bits_per_frame']
+    
+    base, format_string = detect_base_from_json(config)
     print(f"Base is {base}")
 
     if not os.path.exists(file_path):
@@ -54,12 +56,12 @@ def file_to_encodeddata(file_path, bits_per_frame):
         file_content = file.read()
 
     # Convert the file content based on the detected base
-    if base == 64:  # Directly encode for base64
-        encoded_data = base_function(file_content)
+    if base == 64: # Directly encode for base64
+        encoded_data = base64.b64encode(file_content).decode('utf-8')
     else:
         # For other bases, encode each byte individually
-        encoded_data = "".join(f"{byte:08b}" for byte in file_content)
-        # encoded_data = "".join(base_function(byte)[2:] for byte in file_content)
+        encoded_data = "".join(f"{byte:{format_string}}" for byte in file_content)    
+        # encoded_data = "".join(f"{byte:08b}" for byte in file_content)
 
     # with open(f"{file_path}_stream.txt", "w") as file:
     #     file.write(encoded_data)
