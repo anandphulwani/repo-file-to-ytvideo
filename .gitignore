@@ -1,3 +1,4 @@
 
 *.mp4
 /libs/__pycache__
+vlc.exe

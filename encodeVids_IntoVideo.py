@@ -1,15 +1,10 @@
-from PIL import Image
-import math
-import os
-import base64
+import gc
 import sys
 import json
-from moviepy.editor import ImageSequenceClip
-import numpy as np
-from PIL import Image
 from tqdm import tqdm
 import cv2
 import heapq
+from memory_profiler import profile
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
 from libs.file_codec import file_to_encodeddata
@@ -60,20 +55,26 @@ def encode_frame(args):
     # print(f"\ny: {y}, end_offset: {end_offset}")
     return (frame_index, frame)
 
+def check_video_file(config, cap):
+    if not cap.isOpened():
+        raise IOError("Error opening video stream or file")
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    if config['frame_width'] != frame_width or config['frame_height'] != frame_height:
+        print(f"Config's frame dimensions ({config['frame_width']}x{config['frame_height']}) do not match video dimensions ({frame_width}x{frame_height}).")
+        sys.exit(1)
+        
+@profile
 def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
 
     encoded_data = file_to_encodeddata(config, file_path)
+    print('encoding done.')
         
     cap = cv2.VideoCapture(config['bgr_video_path'])
-    if not cap.isOpened():
-        raise IOError("Error opening video stream or file")
+    check_video_file(config, cap)
     
-    if config['frame_width'] != int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or config['frame_height'] != int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)):
-        print(f'Config\'s frame_width({config['frame_width']}) or Config\'s frame_height({config['frame_height']}) doesnot match `bgr_video_path` width({int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}) or height({int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}) respectively.')
-        sys.exit(1)
-
     out = cv2.VideoWriter(config['output_video_path'], cv2.VideoWriter_fourcc(*'FFV1'), config['output_fps'], (config['frame_width'], config['frame_height'])) # *'mp4v'  ;   *'avc1'
     
     total_frames = len(encoded_data)
@@ -97,58 +98,9 @@ def process_video_frames(file_path, config):
                     out.write(frame_to_write)
                 next_frame_to_write += 1
                 pbar.update(1)
-
-    sys.exit(1)
-    
-    # frame_data_iter = iter(encoded_data)
-    # frame_args = []
-    # frame_index = 0
-    # while True:
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-    #     frame_data = next(frame_data_iter, None)
-    #     frame_args.append((frame, config, encoding_color_map, frame_data, frame_index))
-    #     frame_index += 1
-
-    # with Pool(cpu_count()) as pool:
-    #     # imap_unordered allows processing results to be yielded as soon as they are ready, without waiting for previous ones to complete
-    #     result_iterator = pool.imap_unordered(encode_frame, frame_args)
-    #     heap = []
-    #     next_frame_to_write = 0
-    #     pbar = tqdm.tqdm(total=len(frame_args), desc="Encoding data into video")
-        
-    #     for result in result_iterator:
-    #         heapq.heappush(heap, result)
-    #         # As long as the smallest-indexed frame is the next one to write, pop from heap and write to video
-    #         while heap and heap[0][0] == next_frame_to_write:
-    #             _, frame_to_write = heapq.heappop(heap)
-    #             out.write(frame_to_write)
-    #             next_frame_to_write += 1
-    #             pbar.update(1)
-                
-    # 
-    # frame_args = []
-    # frame_index = 0
-    # while True:
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-        
-    #     frame_data = next(frame_data_iter, None)
-    #     frame_args.append((frame, config, encoding_color_map, frame_data, frame_index))
-    #     frame_index += 1
-
-    # with Pool(cpu_count()) as pool:
-    #     results = pool.map(encode_frame, frame_args)
-    
-    # # Sort results by frame index to ensure correct order
-    # results.sort(key=lambda x: x[0])
-
-    # pbar = tqdm.tqdm(total=len(results), desc="Encoding data into video")
-    # for _, frame in results:
-    #     out.write(frame)
-    #     pbar.update(1)
+                if len(heap) % 10 == 0:
+                    gc.collect()
+        gc.collect()
 
     # Release everything if the job is finished
     pbar.close()
@@ -156,23 +108,6 @@ def process_video_frames(file_path, config):
     out.release()
     print(f"Modification is done, frame_index: {frame_index}")
 
-# def inject_frames_to_outvideo(file_path='vlc.exe'):
-#     data_index = 0
-#     while True:
-#         pbar.update(1)
-#         # if frame_counter == (8 * 22):
-#         #     cv2.imwrite('output_image.png', frame)
-#         out.write(frame)
-#         if data_index >= total_binary_length:
-#             break 
-
-    
-
-# try:
-#     inject_frames(config['bgr_video_path'], config['output_video_path'], frames)
-#     print("Video processing completed.")
-# except IOError as e:
-#     print(str(e))
 
 if __name__ == "__main__":
     # Ask the user for the path to the file they wish to encode
