@@ -1,13 +1,6 @@
-from PIL import Image
-import math
-import os
-import base64
 import gc
 import sys
 import json
-from moviepy.editor import ImageSequenceClip
-import numpy as np
-from PIL import Image
 from tqdm import tqdm
 import cv2
 import heapq
@@ -80,10 +73,6 @@ def process_video_frames(file_path, config):
     cap = cv2.VideoCapture(config['bgr_video_path'])
     check_video_file(config, cap)
     
-    if config['frame_width'] != int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or config['frame_height'] != int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)):
-        print(f'Config\'s frame_width({config['frame_width']}) or Config\'s frame_height({config['frame_height']}) doesnot match `bgr_video_path` width({int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}) or height({int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}) respectively.')
-        sys.exit(1)
-
     out = cv2.VideoWriter(config['output_video_path'], cv2.VideoWriter_fourcc(*'FFV1'), config['output_fps'], (config['frame_width'], config['frame_height'])) # *'mp4v'  ;   *'avc1'
     
     total_frames = len(encoded_data)
