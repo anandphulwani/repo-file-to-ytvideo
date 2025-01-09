@@ -81,6 +81,9 @@ def process_frame(frame_details):
         if bits_used_in_frame >= config['bits_per_frame'] or \
             (frame_index >= (num_frames - frame_step) and data_index >= total_binary_length):
             break
+    if len(bit_buffer) != 0:
+        print('bit_buffer is not empty.')
+        sys.exit(1)
     return frame_index, output_data
 
 def process_images(video_path, encoding_map_path, debug = False):
