@@ -110,81 +110,11 @@ def process_video_frames(file_path, config):
                 next_frame_to_write += 1
                 pbar.update(1)
 
-    sys.exit(1)
-    
-    # frame_data_iter = iter(encoded_data)
-    # frame_args = []
-    # frame_index = 0
-    # while True:
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-    #     frame_data = next(frame_data_iter, None)
-    #     frame_args.append((frame, config, encoding_color_map, frame_data, frame_index))
-    #     frame_index += 1
-
-    # with Pool(cpu_count()) as pool:
-    #     # imap_unordered allows processing results to be yielded as soon as they are ready, without waiting for previous ones to complete
-    #     result_iterator = pool.imap_unordered(encode_frame, frame_args)
-    #     heap = []
-    #     next_frame_to_write = 0
-    #     pbar = tqdm.tqdm(total=len(frame_args), desc="Encoding data into video")
-        
-    #     for result in result_iterator:
-    #         heapq.heappush(heap, result)
-    #         # As long as the smallest-indexed frame is the next one to write, pop from heap and write to video
-    #         while heap and heap[0][0] == next_frame_to_write:
-    #             _, frame_to_write = heapq.heappop(heap)
-    #             out.write(frame_to_write)
-    #             next_frame_to_write += 1
-    #             pbar.update(1)
-                
-    # 
-    # frame_args = []
-    # frame_index = 0
-    # while True:
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-        
-    #     frame_data = next(frame_data_iter, None)
-    #     frame_args.append((frame, config, encoding_color_map, frame_data, frame_index))
-    #     frame_index += 1
-
-    # with Pool(cpu_count()) as pool:
-    #     results = pool.map(encode_frame, frame_args)
-    
-    # # Sort results by frame index to ensure correct order
-    # results.sort(key=lambda x: x[0])
-
-    # pbar = tqdm.tqdm(total=len(results), desc="Encoding data into video")
-    # for _, frame in results:
-    #     out.write(frame)
-    #     pbar.update(1)
-
     # Release everything if the job is finished
     pbar.close()
     cap.release()
     out.release()
     print(f"Modification is done, frame_index: {frame_index}")
-
-# def inject_frames_to_outvideo(file_path='vlc.exe'):
-#     data_index = 0
-#     while True:
-#         pbar.update(1)
-#         # if frame_counter == (8 * 22):
-#         #     cv2.imwrite('output_image.png', frame)
-#         out.write(frame)
-#         if data_index >= total_binary_length:
-#             break 
-
-    
-
-# try:
-#     inject_frames(config['bgr_video_path'], config['output_video_path'], frames)
-#     print("Video processing completed.")
-# except IOError as e:
-#     print(str(e))
 
 if __name__ == "__main__":
     # Ask the user for the path to the file they wish to encode
