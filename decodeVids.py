@@ -101,11 +101,6 @@ def process_images(video_path, encoding_map_path):
     
     pbar = tqdm(total=int(num_frames / frame_step), desc="Processing Frames")
     
-    # First frame processing
-    return_value = process_frame((vid.get_data(frame_start), encoding_color_map, 0, frame_step, 0, num_frames))
-    write_queue.put(return_value)
-    pbar.update(1)
-    
     frame_start += frame_step
     next_frame_to_write = frame_start
 
@@ -128,11 +123,6 @@ def process_images(video_path, encoding_map_path):
                 pbar.update(1)
         pool.close()
         pool.join()
-
-    # Last frame processing
-    return_value = process_frame((vid.get_data(num_frames - 1), encoding_color_map, num_frames - 1, frame_step, total_binary_length, num_frames))
-    write_queue.put(return_value)
-    pbar.update(1)
 
     write_queue.put(None)
     writer_pool.close()
