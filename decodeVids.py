@@ -70,12 +70,12 @@ def process_frame(frame_details):
                 (frame_index >= (num_frames - frame_step) and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
-                bit_buffer += nearest_color_key
-                if len(bit_buffer) == 8:
-                    output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
-                    bit_buffer = ''
-                if frame_index >= (num_frames - frame_step):
-                    data_index += 1
+            bit_buffer += nearest_color_key
+            if len(bit_buffer) == 8:
+                output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
+                bit_buffer = ''
+            if frame_index >= (num_frames - frame_step):
+                data_index += 1
             bits_used_in_frame += 1
         y += 2
         if bits_used_in_frame >= config['bits_per_frame'] or \
