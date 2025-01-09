@@ -60,6 +60,15 @@ def encode_frame(args):
     # print(f"\ny: {y}, end_offset: {end_offset}")
     return (frame_index, frame)
 
+def check_video_file(config, cap):
+    if not cap.isOpened():
+        raise IOError("Error opening video stream or file")
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    if config['frame_width'] != frame_width or config['frame_height'] != frame_height:
+        print(f"Config's frame dimensions ({config['frame_width']}x{config['frame_height']}) do not match video dimensions ({frame_width}x{frame_height}).")
+        sys.exit(1)
+
 def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
@@ -68,8 +77,7 @@ def process_video_frames(file_path, config):
     print('Encoding done.')
 
     cap = cv2.VideoCapture(config['bgr_video_path'])
-    if not cap.isOpened():
-        raise IOError("Error opening video stream or file")
+    check_video_file(config, cap)
     
     if config['frame_width'] != int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or config['frame_height'] != int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)):
         print(f'Config\'s frame_width({config['frame_width']}) or Config\'s frame_height({config['frame_height']}) doesnot match `bgr_video_path` width({int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}) or height({int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}) respectively.')
