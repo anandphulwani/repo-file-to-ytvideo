@@ -27,7 +27,6 @@ def encode_frame(args):
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
-        # return (frame_index, None)
     
     frame[0 + config['padding'] : config['frame_height'] - config['padding'], 0 + config['padding'] : config['frame_width'] - config['padding']] = (255, 255, 255)
     if frame_index == (total_frames - 1):
@@ -49,9 +48,6 @@ def encode_frame(args):
             bits_used_in_frame += 1
         if bits_used_in_frame >= config['bits_per_frame'] or (frame_index == (total_frames - 1) and data_index >= total_binary_length):
             break
-    
-    # print(f"\nconfig['frame_height']: {config['frame_height']}, config['padding']: {config['padding']}, config['buffer_padding']: {config['buffer_padding']}")
-    # print(f"\ny: {y}, end_offset: {end_offset}")
     return (frame_index, frame)
 
 def check_video_file(config, cap):
@@ -77,7 +73,6 @@ def process_video_frames(file_path, config):
     
     total_frames = len(encoded_data)
     total_binary_length = (config['bits_per_frame'] * (total_frames - 1)) + len(encoded_data[-1]) # 355362912
-    # pbar = tqdm(total=total_binary_length, desc="Encoding data into video")
 
     next_frame_to_write = 0
     heap = []
