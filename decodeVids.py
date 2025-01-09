@@ -83,7 +83,7 @@ def process_frame(frame_details):
             break
     return frame_index, output_data
 
-def process_images(video_path, encoding_map_path):
+def process_images(video_path, encoding_map_path, debug = False):
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
