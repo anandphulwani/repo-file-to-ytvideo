@@ -4,7 +4,6 @@ import imageio
 import heapq
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager
-# import multiprocessing
 from libs.config_loader import load_config
 from libs.downloadFromYT import downloadFromYT
 from libs.determine_color_key import determine_color_key
@@ -19,10 +18,6 @@ def writer_process(write_queue, file_path):
             if item is None:  # Check for the termination signal
                 break
             frame_index, data = item
-            # if frame_index >= 5645:
-            #     print(f"frame_index: {frame_index}")
-            # count += 1
-            # print(f'WRITERPROCESS: frame_index: {count}')
             try:
                 for byte_data in data:
                     binary_output_file.write(byte_data)
@@ -38,22 +33,16 @@ def process_frame(frame_details):
     # print (f'frame_index: {frame_index}, num_frames: {num_frames}')
     
     if frame_index >= (num_frames - frame_step):
-        # print(f'frame_index ({frame_index}) >= (num_frames({num_frames}) - frame_step({frame_step})')
         data_index = config['bits_per_frame'] * math.floor(frame_index / frame_step)
-        # print(f'data_index({data_index}) = config[bits_per_frame]({config['bits_per_frame']})  * (frame_index({frame_index}) / frame_step({frame_step}))')
     
     total_binary_length_binary = ''
     bit_buffer = ''
-    
     output_data = []
-
     bits_used_in_frame = 0
 
     y = config['start_height']
     while y < config['end_height']:
         for x in range(config['start_width'], config['end_width'], 2):
-            # if frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length:
-            #     print(f'01. Breaking because of data index exceeded, frame_index({frame_index}) >= num_frames - frame_step({num_frames - frame_step}), data_index({data_index}) >= total_binary_length({total_binary_length})')
             if bits_used_in_frame >= config['bits_per_frame'] or \
                 (frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length):
                 break
@@ -66,12 +55,6 @@ def process_frame(frame_details):
                     # print(total_binary_length)
             else:
                 bit_buffer += nearest_color_key
-                # if reference_data[data_index:data_index+1] != nearest_color_key:
-                #     print(f"Mismatch found y:{y}, x:{x} at index {data_index}: expected '{reference_data[data_index:data_index+1]}', got '{nearest_color_key}'")
-                #     print(f"colorX1Y1: {tuple(frame[y, x])}")
-                #     print(f"colorX1Y2: {tuple(frame[y + 1, x])}")
-                #     print(f"colorX2Y1: {tuple(frame[y, x + 1])}")
-                #     print(f"colorX2Y2: {tuple(frame[y + 1, x + 1])}")
                 if len(bit_buffer) == 8:
                     output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
                     bit_buffer = ''
@@ -79,8 +62,6 @@ def process_frame(frame_details):
                     data_index += 1
             bits_used_in_frame += 1
         y += 2
-        # if frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length:
-        #     print(f'02. Breaking because of data index exceeded, frame_index({frame_index}) >= num_frames - frame_step({num_frames - frame_step}), data_index({data_index}) >= total_binary_length({total_binary_length})')
         if bits_used_in_frame >= config['bits_per_frame'] or \
             (frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length):
             break
@@ -91,20 +72,13 @@ def process_images(video_path, encoding_map_path):
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
-    # with open('vlc.exe_stream.txt', 'r') as file:
-    #     reference_data = file.read()
-    
     vid = imageio.get_reader(video_path, 'ffmpeg')
     num_frames = vid.count_frames() # get_total_frames(video_path)
     
-    # Retrieve metadata
     metadata = vid.get_meta_data()
     fps = int(metadata['fps'])
-    # print(f'fps: {fps}')
-    # frame_step = int(fps // config['repeat_same_frame'])
     frame_step = config['repeat_same_frame']
     frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
-    # print(f'fps: {fps}')
     
     manager = Manager()
     write_queue = manager.Queue()
@@ -126,12 +100,10 @@ def process_images(video_path, encoding_map_path):
     writer_pool = Pool(1)
     writer_pool.apply_async(writer_process, (write_queue, "file_rev.exe"))
     with Pool(cpu_count()) as pool:
-        # frame_iterator = ((frame, encoding_color_map, index, frame_step, total_binary_length, num_frames) for index, frame in enumerate(vid) if index >= 1 and index <= num_frames - 2)
         frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, total_binary_length, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
         
         for result in result_iterator:
-            # pbar.update(1)
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
                 return_value = heapq.heappop(heap)
@@ -155,16 +127,4 @@ def process_images(video_path, encoding_map_path):
 if __name__ == "__main__":                        
     video_url = input("Please enter the URL to the video file: ")
     downloadFromYT(video_url)
-
     process_images('video_downloaded.mp4', config['encoding_map_path'])
-        
-    # Write the decoded bytes to the output file
-    # with open(f"", "w") as file:
-    #     file.write(encoded_data)
-    
-    # if encoded_data:
-    #     pass
-    #     # print("Video successfully decoded to data.")
-    #     # encodeddata_to_file(encoded_data, "fdm_rev.exe", encoding_map_path)
-    # else:
-    #     print("No data was decoded from the video.")

@@ -63,9 +63,6 @@ def file_to_encodeddata(config, file_path):
         encoded_data = "".join(f"{byte:{format_string}}" for byte in file_content)    
         # encoded_data = "".join(f"{byte:08b}" for byte in file_content)
 
-    # with open(f"{file_path}_stream.txt", "w") as file:
-    #     file.write(encoded_data)
-    
     total_binary_length = len(encoded_data)
     
     paddedleft20_total_binary_length = str(total_binary_length).zfill(20)
