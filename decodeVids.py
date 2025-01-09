@@ -1,3 +1,4 @@
+import os
 import json
 import math
 import imageio
@@ -9,6 +10,31 @@ from libs.downloadFromYT import downloadFromYT
 from libs.determine_color_key import determine_color_key
 
 config = load_config('config.ini')
+
+def get_available_filename_to_decode(filename):
+    # Access the directory where the files are checked
+    data_folder_decoded = config['data_folder_decoded']
+    # Build the full path for the original filename
+    original_filepath = os.path.join(data_folder_decoded, filename)
+
+    # If the original file does not exist, return the original filename
+    if not os.path.exists(original_filepath):
+        return filename
+
+    # If the original file exists, check for "decoded_filename"
+    decoded_filename = f"decoded_{filename}"
+    decoded_filepath = os.path.join(data_folder_decoded, decoded_filename)
+    if not os.path.exists(decoded_filepath):
+        return decoded_filename
+
+    # If "decoded_filename" exists, look for "decoded(XX)_filename"
+    count = 1
+    while True:
+        incremented_filename = f"decoded({count:02})_{filename}"
+        incremented_filepath = os.path.join(data_folder_decoded, incremented_filename)
+        if not os.path.exists(incremented_filepath):
+            return incremented_filename
+        count += 1
 
 def writer_process(write_queue, file_path):
     # count = 0
@@ -98,7 +124,8 @@ def process_images(video_path, encoding_map_path):
     
     # Create a multiprocessing pool to process the remaining frames except the first and last one
     writer_pool = Pool(1)
-    writer_pool.apply_async(writer_process, (write_queue, "file_rev.exe"))
+    available_filename = get_available_filename_to_decode(file_metadata.name)
+    writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
         frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, total_binary_length, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
