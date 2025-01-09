@@ -51,17 +51,14 @@ def writer_process(write_queue, file_path):
                 print(f"Error writing data: {e} on frame_index: {frame_index}")
                 break  # Exit on error
 
-total_binary_length = 0
 
 def process_frame(frame_details):
-    global total_binary_length
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
     # print (f'frame_index: {frame_index}, num_frames: {num_frames}')
     
     if frame_index >= (num_frames - frame_step):
         data_index = config['bits_per_frame'] * math.floor(frame_index / frame_step)
     
-    total_binary_length_binary = ''
     bit_buffer = ''
     output_data = []
     bits_used_in_frame = 0
@@ -70,16 +67,9 @@ def process_frame(frame_details):
     while y < config['end_height']:
         for x in range(config['start_width'], config['end_width'], 2):
             if bits_used_in_frame >= config['bits_per_frame'] or \
-                (frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length):
+                (frame_index >= (num_frames - frame_step) and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
-            if total_binary_length == 0:
-                total_binary_length_binary += nearest_color_key
-                if len(total_binary_length_binary) == 160:
-                    total_binary_length = ''.join(chr(int(total_binary_length_binary[i:i+8], 2)) for i in range(0, len(total_binary_length_binary), 8))
-                    total_binary_length = int(total_binary_length) + 160
-                    # print(total_binary_length)
-            else:
                 bit_buffer += nearest_color_key
                 if len(bit_buffer) == 8:
                     output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
@@ -89,12 +79,11 @@ def process_frame(frame_details):
             bits_used_in_frame += 1
         y += 2
         if bits_used_in_frame >= config['bits_per_frame'] or \
-            (frame_index >= (num_frames - frame_step) and total_binary_length != 0 and data_index >= total_binary_length):
+            (frame_index >= (num_frames - frame_step) and data_index >= total_binary_length):
             break
     return frame_index, output_data
 
 def process_images(video_path, encoding_map_path):
-    global total_binary_length
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
@@ -127,7 +116,7 @@ def process_images(video_path, encoding_map_path):
     available_filename = get_available_filename_to_decode(file_metadata.name)
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, total_binary_length, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
+        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
         
         for result in result_iterator:

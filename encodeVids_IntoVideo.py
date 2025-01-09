@@ -10,7 +10,7 @@ from libs.file_codec import file_to_encodeddata
 
 config = load_config('config.ini')
 
-def generate_frame_args(cap, config, frame_data_iter, total_frames, total_binary_length, encoding_color_map):
+def generate_frame_args(cap, config, frame_data_iter, total_frames, encoding_color_map):
     frame_index = 0
     while True:
         if frame_index >= total_frames:
@@ -19,11 +19,11 @@ def generate_frame_args(cap, config, frame_data_iter, total_frames, total_binary
         if not ret:
             break
         frame_data = next(frame_data_iter, None)
-        yield (frame, config, encoding_color_map, frame_data, frame_index, total_frames, total_binary_length)
+        yield (frame, config, encoding_color_map, frame_data, frame_index, total_frames)
         frame_index += 1
 
 def encode_frame(args):
-    frame, config, encoding_color_map, frame_data, frame_index, total_frames, total_binary_length = args
+    frame, config, encoding_color_map, frame_data, frame_index, total_frames = args
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
@@ -35,7 +35,7 @@ def encode_frame(args):
     bits_used_in_frame = 0
     for y in range(config['start_height'], config['end_height'], 2):
         for x in range(config['start_width'], config['end_width'], 2):
-            if bits_used_in_frame >= config['bits_per_frame'] or (frame_index == (total_frames - 1) and data_index >= total_binary_length):
+            if bits_used_in_frame >= config['bits_per_frame'] or frame_index == (total_frames - 1):
                 break
             char = frame_data[bits_used_in_frame] # char = encoded_data[data_index]
             if char in encoding_color_map:
@@ -46,7 +46,7 @@ def encode_frame(args):
             if frame_index == (total_frames - 1):
                 data_index += 1
             bits_used_in_frame += 1
-        if bits_used_in_frame >= config['bits_per_frame'] or (frame_index == (total_frames - 1) and data_index >= total_binary_length):
+        if bits_used_in_frame >= config['bits_per_frame'] or frame_index == (total_frames - 1):
             break
     return (frame_index, frame)
 
@@ -72,8 +72,7 @@ def process_video_frames(file_path, config):
     out = cv2.VideoWriter(config['output_video_path'], cv2.VideoWriter_fourcc(*'FFV1'), config['output_fps'], (config['frame_width'], config['frame_height'])) # *'mp4v'  ;   *'avc1'
     
     total_frames = len(encoded_data)
-    total_binary_length = (config['bits_per_frame'] * (total_frames - 1)) + len(encoded_data[-1]) # 355362912
-
+    
     next_frame_to_write = 0
     heap = []
     frame_index = 0
@@ -82,7 +81,7 @@ def process_video_frames(file_path, config):
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap_unordered(
             encode_frame, 
-            generate_frame_args(cap, config, frame_data_iter, total_frames, total_binary_length, encoding_color_map)
+            generate_frame_args(cap, config, frame_data_iter, total_frames, encoding_color_map)
         )
         pbar = tqdm(total=len(encoded_data), desc="Encoding data into video")
         
