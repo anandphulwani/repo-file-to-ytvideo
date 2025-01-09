@@ -41,7 +41,7 @@ def encodeddata_to_file(encoded_data, video_path, encoding_map_path='encoding_co
 
     print(f"Encoded data converted back to {video_path}_reverse.rev")
      
-def file_to_encodeddata(config, file_path):
+def file_to_encodeddata(config, file_path, debug = False):
     bits_per_frame = config['bits_per_frame']
     
     base, format_string = detect_base_from_json(config)
