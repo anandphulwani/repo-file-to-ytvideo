@@ -2,6 +2,7 @@ from PIL import Image
 import math
 import os
 import base64
+import gc
 import sys
 import json
 from moviepy.editor import ImageSequenceClip
@@ -109,6 +110,9 @@ def process_video_frames(file_path, config):
                     out.write(frame_to_write)
                 next_frame_to_write += 1
                 pbar.update(1)
+                if len(heap) % 10 == 0:
+                    gc.collect()
+        gc.collect()
 
     # Release everything if the job is finished
     pbar.close()
