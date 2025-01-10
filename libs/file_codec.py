@@ -44,6 +44,8 @@ def encodeddata_to_file(encoded_data, video_path, encoding_map_path='encoding_co
 def file_to_encodeddata(config, file_path, debug = False):
     bits_per_frame = config['bits_per_frame']
     
+    stream_file = open(f"{file_path}_stream.txt", "w") if debug else None
+        
     base, format_string = detect_base_from_json(config)
     print(f"Base is {base}")
 
