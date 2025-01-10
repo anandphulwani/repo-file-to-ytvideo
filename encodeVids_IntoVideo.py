@@ -34,7 +34,7 @@ def encode_frame(args):
     bits_used_in_frame = 0
     for y in range(config['start_height'], config['end_height'], 2):
         for x in range(config['start_width'], config['end_width'], 2):
-            if bits_used_in_frame >= config['bits_per_frame']:
+            if bits_used_in_frame >= len(frame_data):
                 break
             char = frame_data[bits_used_in_frame] # char = encoded_data[data_index]
             if char in encoding_color_map:
@@ -43,7 +43,7 @@ def encode_frame(args):
                 raise ValueError(f"Unknown character: {char} found in encoded data stream")            
             frame[y:y+2, x:x+2] = color
             bits_used_in_frame += 1
-        if bits_used_in_frame >= config['bits_per_frame']:
+        if bits_used_in_frame >= len(frame_data):
             break
     return (frame_index, frame)
 
