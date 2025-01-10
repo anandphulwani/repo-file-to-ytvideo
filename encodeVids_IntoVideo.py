@@ -17,6 +17,8 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
         if not ret:
             break
         frame_data = next(frame_data_iter, None)
+        if frame_data == None:
+            break
         yield (frame, config, encoding_color_map, frame_data, frame_index)
         frame_index += 1
 
