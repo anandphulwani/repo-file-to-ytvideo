@@ -156,6 +156,8 @@ def process_images(video_path, encoding_map_path, debug = False):
     metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step, num_frames)
     num_frames = num_frames - metadata_frames
     
+    stream_file = open(f"{file_metadata.name}_stream.txt", "r") if debug else None
+    
     next_frame_to_write = frame_start
 
     heap = [] # Process results as they become available
