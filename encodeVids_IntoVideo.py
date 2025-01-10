@@ -37,7 +37,7 @@ def encode_frame(args):
             if bits_used_in_frame >= len(frame_data):
                 break
             try:
-                char = frame_data[bits_used_in_frame] # char = encoded_data[data_index]
+                char = frame_data[bits_used_in_frame]
             except Exception as e:
                 print("Error:", e)   
                 sys.exit(1)
