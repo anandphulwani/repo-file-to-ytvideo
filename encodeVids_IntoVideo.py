@@ -4,6 +4,7 @@ import json
 from tqdm import tqdm
 import cv2
 import heapq
+import ffmpeg
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
 from libs.file_codec import file_to_encodeddata
@@ -65,7 +66,15 @@ def process_video_frames(file_path, config):
     cap = cv2.VideoCapture(config['bgr_video_path'])
     check_video_file(config, cap)
     
-    out = cv2.VideoWriter(config['output_video_path'], cv2.VideoWriter_fourcc(*'FFV1'), config['output_fps'], (config['frame_width'], config['frame_height'])) # *'mp4v'  ;   *'avc1'
+    ffmpeg_process = (
+        ffmpeg
+        .input('pipe:', framerate=config['output_fps'], format='rawvideo', pix_fmt='bgr24', 
+               s=f'{config["frame_width"]}x{config["frame_height"]}')
+        .output(file_path + config['output_video_suffix'], vcodec='libx264', pix_fmt='yuv420p', 
+                **{'b:v': '2000k', 'crf': 23, 'bufsize': '1024k'})
+        .overwrite_output()
+        .run_async(pipe_stdin=True)
+    )
     
     next_frame_to_write = 0
     heap = []
@@ -82,7 +91,8 @@ def process_video_frames(file_path, config):
             while heap and heap[0][0] == next_frame_to_write:
                 _, frame_to_write = heapq.heappop(heap)
                 for _ in range(config['repeat_same_frame']):
-                    out.write(frame_to_write)
+                    ffmpeg_process.stdin.write(frame_to_write)
+                ffmpeg_process.stdin.flush()
                 next_frame_to_write += 1
                 if len(heap) % 10 == 0:
                     gc.collect()
@@ -90,7 +100,8 @@ def process_video_frames(file_path, config):
 
     # Release everything if the job is finished
     cap.release()
-    out.release()
+    ffmpeg_process.stdin.close()
+    ffmpeg_process.wait()
     print(f"Modification is done.")
 
 if __name__ == "__main__":
