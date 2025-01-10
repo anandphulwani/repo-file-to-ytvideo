@@ -3,11 +3,13 @@ import json
 import math
 import imageio
 import heapq
+import sys
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager
 from libs.config_loader import load_config
 from libs.downloadFromYT import downloadFromYT
 from libs.determine_color_key import determine_color_key
+from libs.transmit_file import transmit_file
 
 config = load_config('config.ini')
 
@@ -51,6 +53,56 @@ def writer_process(write_queue, file_path):
                 print(f"Error writing data: {e} on frame_index: {frame_index}")
                 break  # Exit on error
 
+def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
+    metadata_starts_with = '|::-::|FILE METADATA|:-:|'
+    bit_buffer = ''
+    output_data = ''
+    
+    metadata_frames = frame_step
+    
+    while True:
+        if output_data != '':
+            break
+        for frame_index in range(num_frames - metadata_frames, num_frames, frame_step):
+            frame = vid.get_data(frame_index)
+            y = config['start_height']
+            while y < config['end_height']:
+                for x in range(config['start_width'], config['end_width'], 2):
+                    if len(output_data) != 7 and output_data.endswith('|::-::|'):
+                        break
+                    nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
+                    bit_buffer += nearest_color_key
+                    if len(bit_buffer) == 8:
+                        decoded_char = int(bit_buffer, 2).to_bytes(1, byteorder='big')
+                        output_data += decoded_char.decode('utf-8')
+                        bit_buffer = ''
+                        if len(output_data) <= 25:
+                            if not metadata_starts_with.startswith(output_data):
+                                metadata_frames += frame_step
+                                output_data = ''
+                                break  # Exit the `for x` loop
+                else:
+                    y += 2
+                    continue  # Continue `while y` loop, Only reached if its inner loop was not forcefully broken
+                break  # Break out of `while y` loop
+            else:
+                continue  # Continue `for frame_index` loop, Only reached if its inner loop was not forcefully broken
+            break  # Break out of `for frame_index` loop
+        else:
+            break  # Break out of `while True` loop, Only reached if its inner loop was not forcefully broken
+        continue  # Continue `while True` loop
+
+    output_data = output_data[25:-7]
+    output_data_parts = output_data.split('|:-:|')
+
+    # Check if we have the correct number of parts for our class initializer
+    if len(output_data_parts) == 4:
+        transmit_file_obj = transmit_file(output_data_parts[0], output_data_parts[1], output_data_parts[2], output_data_parts[3])
+    else:
+        print("The substring does not split into the correct number of parts.")
+        sys.exit(1)
+        
+    return metadata_frames, transmit_file_obj
 
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
@@ -103,6 +155,8 @@ def process_images(video_path, encoding_map_path, debug = False):
     heap = []
     
     pbar = tqdm(total=int(num_frames / frame_step), desc="Processing Frames")
+    metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step, num_frames)
+    num_frames = num_frames - metadata_frames
     
     frame_start += frame_step
     next_frame_to_write = frame_start
@@ -114,7 +168,7 @@ def process_images(video_path, encoding_map_path, debug = False):
     available_filename = get_available_filename_to_decode(file_metadata.name)
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
+        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
         
         for result in result_iterator:
