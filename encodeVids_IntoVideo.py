@@ -74,7 +74,6 @@ def process_video_frames(file_path, config):
             encode_frame, 
             generate_frame_args(cap, config, frame_data_iter, encoding_color_map)
         )
-        pbar = tqdm(total=len(encoded_data), desc="Encoding data into video")
         
         for result in result_iterator:
             heapq.heappush(heap, result)
@@ -83,13 +82,11 @@ def process_video_frames(file_path, config):
                 for _ in range(config['repeat_same_frame']):
                     out.write(frame_to_write)
                 next_frame_to_write += 1
-                pbar.update(1)
                 if len(heap) % 10 == 0:
                     gc.collect()
         gc.collect()
 
     # Release everything if the job is finished
-    pbar.close()
     cap.release()
     out.release()
     print(f"Modification is done.")
