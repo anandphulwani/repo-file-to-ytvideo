@@ -36,7 +36,11 @@ def encode_frame(args):
         for x in range(config['start_width'], config['end_width'], 2):
             if bits_used_in_frame >= len(frame_data):
                 break
+            try:
             char = frame_data[bits_used_in_frame] # char = encoded_data[data_index]
+            except Exception as e:
+                print("Error:", e)   
+                sys.exit(1)
             if char in encoding_color_map:
                 color = tuple(int(encoding_color_map[char][i:i+2], 16) for i in (1, 3, 5))[::-1]
             else:
