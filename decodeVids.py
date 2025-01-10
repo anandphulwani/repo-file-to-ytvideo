@@ -145,8 +145,6 @@ def process_images(video_path, encoding_map_path, debug = False):
     vid = imageio.get_reader(video_path, 'ffmpeg')
     num_frames = vid.count_frames() # get_total_frames(video_path)
     
-    metadata = vid.get_meta_data()
-    fps = int(metadata['fps'])
     frame_step = config['repeat_same_frame']
     frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
     
@@ -158,7 +156,6 @@ def process_images(video_path, encoding_map_path, debug = False):
     metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step, num_frames)
     num_frames = num_frames - metadata_frames
     
-    frame_start += frame_step
     next_frame_to_write = frame_start
 
     heap = [] # Process results as they become available
@@ -168,7 +165,7 @@ def process_images(video_path, encoding_map_path, debug = False):
     available_filename = get_available_filename_to_decode(file_metadata.name)
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames) for index in range(frame_start, num_frames - frame_step, frame_step))
+        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames) for index in range(frame_start, num_frames, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
         
         for result in result_iterator:
