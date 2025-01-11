@@ -4,6 +4,7 @@ import math
 import imageio
 import heapq
 import sys
+import hashlib
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager
 from libs.config_loader import load_config
@@ -148,6 +149,8 @@ def process_images(video_path, encoding_map_path, debug = False):
     frame_step = config['repeat_same_frame']
     frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
     
+    sha1 = hashlib.sha1()
+    
     manager = Manager()
     write_queue = manager.Queue()
     heap = []
@@ -174,6 +177,19 @@ def process_images(video_path, encoding_map_path, debug = False):
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
                 return_value = heapq.heappop(heap)
+                frame_index, output_data = return_value
+                for data_bytes in output_data:
+                    sha1.update(data_bytes)
+                    
+                    # Verify the data read from the stream_file
+                    if stream_file:
+                        # Read the corresponding bytes from the stream_file
+                        data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
+                        expected_binary_string = stream_file.read(len(data_binary_string))
+                        if data_binary_string != expected_binary_string:
+                            print(f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n")
+                            sys.exit(1)
+
                 write_queue.put(return_value)
                 next_frame_to_write += frame_step
                 pbar.update(1)
@@ -185,6 +201,16 @@ def process_images(video_path, encoding_map_path, debug = False):
     writer_pool.join()
     
     pbar.close()
+    
+    stream_file and stream_file.close()
+    
+    if sha1.hexdigest() == file_metadata.sha1:
+        print("Files decoded successfully, SHA1 matched: " + available_filename)
+    else:
+        print("Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " + available_filename)
+        if not debug:
+            os.remove(available_filename)
+        
 
 if __name__ == "__main__":                        
     video_url = input("Please enter the URL to the video file: ")
