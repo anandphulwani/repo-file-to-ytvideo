@@ -15,22 +15,17 @@ from libs.transmit_file import transmit_file
 config = load_config('config.ini')
 
 def get_available_filename_to_decode(filename):
-    # Access the directory where the files are checked
     data_folder_decoded = config['data_folder_decoded']
-    # Build the full path for the original filename
     original_filepath = os.path.join(data_folder_decoded, filename)
 
-    # If the original file does not exist, return the original filename
     if not os.path.exists(original_filepath):
         return filename
 
-    # If the original file exists, check for "decoded_filename"
     decoded_filename = f"decoded_{filename}"
     decoded_filepath = os.path.join(data_folder_decoded, decoded_filename)
     if not os.path.exists(decoded_filepath):
         return decoded_filename
 
-    # If "decoded_filename" exists, look for "decoded(XX)_filename"
     count = 1
     while True:
         incremented_filename = f"decoded({count:02})_{filename}"
@@ -40,7 +35,6 @@ def get_available_filename_to_decode(filename):
         count += 1
 
 def writer_process(write_queue, file_path):
-    # count = 0
     with open(file_path, 'wb') as binary_output_file:
         while True:
             item = write_queue.get(True)  # This will block until an item is available
@@ -107,7 +101,6 @@ def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
 
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
-    # print (f'frame_index: {frame_index}, num_frames: {num_frames}')
     
     if frame_index >= (num_frames - frame_step):
         data_index = config['bits_per_frame'] * math.floor(frame_index / frame_step)
