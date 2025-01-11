@@ -52,23 +52,3 @@ def file_to_encodeddata(config, file_path, debug = False):
     if not os.path.exists(file_path):
         print("The specified file does not exist.")
         sys.exit(1)
-
-    # Read the file content
-    with open(file_path, "rb") as file:
-        file_content = file.read()
-
-    # Convert the file content based on the detected base
-    if base == 64: # Directly encode for base64
-        encoded_data = base64.b64encode(file_content).decode('utf-8')
-    else:
-        # For other bases, encode each byte individually
-        encoded_data = "".join(f"{byte:{format_string}}" for byte in file_content)    
-        # encoded_data = "".join(f"{byte:08b}" for byte in file_content)
-
-    total_binary_length = len(encoded_data)
-    
-    paddedleft20_total_binary_length = str(total_binary_length).zfill(20)
-    paddedleft20_total_binary_length_binary = ''.join(format(ord(char), '08b') for char in paddedleft20_total_binary_length)
-    encoded_data =  "".join([paddedleft20_total_binary_length_binary, encoded_data])
-    
-    return [encoded_data[i:i + bits_per_frame] for i in range(0, len(encoded_data), bits_per_frame)]
