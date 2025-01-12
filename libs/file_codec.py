@@ -6,6 +6,11 @@ import hashlib
 from .detect_base_from_json import detect_base_from_json
 
 def file_to_encodeddata(config, file_path, debug = False):
+    """
+    A single-pass generator that reads the file once, computing SHA1 hash
+    and total bit-length on the fly, and yields the final metadata bits
+    at the end.
+    """
     bits_per_frame = config['bits_per_frame']
     
     sha1 = hashlib.sha1()
