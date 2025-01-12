@@ -1,6 +1,7 @@
 # lib/config_loader.py
 import configparser
 import math
+import os
 
 def convert_to_appropriate_type(value):
     """Try converting strings to integers or floats when possible."""
@@ -23,6 +24,14 @@ def load_config(filename):
     config_dict = {}
     for key, value in config_items:
         config_dict[key] = convert_to_appropriate_type(value)
+
+    # Adjust encoding_map_path based on the OS
+    if 'encoding_map_path' in config_dict:
+        if os.name == 'nt':  # Windows
+            config_dict['encoding_map_path'] = config_dict['encoding_map_path'].replace('/', '\\')
+        else:  # Linux/Unix
+            config_dict['encoding_map_path'] = config_dict['encoding_map_path'].replace('\\', '/')
+
     if 'margin' in config_dict and 'padding' in config_dict and 'frame_width' in config_dict and 'frame_height' in config_dict:
         config_dict['start_width'] = int(config_dict['margin']) + int(config_dict['padding'])
         config_dict['end_width'] = int(config_dict['frame_width']) - int(config_dict['margin']) - int(config_dict['padding'])
