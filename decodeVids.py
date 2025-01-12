@@ -1,3 +1,4 @@
+import cv2
 import os
 import json
 import math
@@ -132,12 +133,19 @@ def process_frame(frame_details):
         sys.exit(1)
     return frame_index, output_data
 
+def count_frames(video_path):
+    video = cv2.VideoCapture(video_path)
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    video.release()
+    return frame_count
+
 def process_images(video_path, encoding_map_path, debug = False):
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
     vid = imageio.get_reader(video_path, 'ffmpeg')
-    num_frames = vid.count_frames() # get_total_frames(video_path)
+    num_frames = count_frames(video_path)
+    print(f"Number of frames: {num_frames}")
     
     frame_step = config['repeat_same_frame']
     frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
