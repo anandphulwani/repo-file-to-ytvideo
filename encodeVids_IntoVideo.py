@@ -29,7 +29,7 @@ def encode_frame(args):
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
     
-    frame[0 + config['padding'] : config['frame_height'] - config['padding'], 0 + config['padding'] : config['frame_width'] - config['padding']] = (255, 255, 255)
+    frame[0 + config['margin'] : config['frame_height'] - config['margin'], 0 + config['margin'] : config['frame_width'] - config['margin']] = (255, 255, 255)
     
     bits_used_in_frame = 0
     for y in range(config['start_height'], config['end_height'], 2):
