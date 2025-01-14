@@ -1,9 +1,8 @@
 import os
-import sys
 import shutil
 import numpy as np
 from moviepy.video.tools.segmenting import findObjects
-from moviepy.editor import TextClip, CompositeVideoClip, ColorClip, concatenate_videoclips
+from moviepy.editor import TextClip, CompositeVideoClip, ColorClip
 
 frames_dir = "frames"
 if os.path.exists(frames_dir):

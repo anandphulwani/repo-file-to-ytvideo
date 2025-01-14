@@ -1,7 +1,6 @@
 import gc
 import sys
 import json
-from tqdm import tqdm
 import cv2
 import heapq
 import ffmpeg
@@ -19,7 +18,7 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
         if not ret:
             break
         frame_data = next(frame_data_iter, None)
-        if frame_data == None:
+        if frame_data is None:
             break
         yield (frame, config, encoding_color_map, frame_data, frame_index)
         frame_index += 1
@@ -115,7 +114,7 @@ def process_video_frames(file_path, config):
     cap.release()
     ffmpeg_process.stdin.close()
     ffmpeg_process.wait()
-    print(f"Modification is done.")
+    print("Modification is done.")
 
 
 if __name__ == "__main__":
