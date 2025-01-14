@@ -15,6 +15,7 @@ from libs.transmit_file import transmit_file
 
 config = load_config('config.ini')
 
+
 def get_available_filename_to_decode(filename):
     data_folder_decoded = config['data_folder_decoded']
     original_filepath = os.path.join(data_folder_decoded, filename)
@@ -35,6 +36,7 @@ def get_available_filename_to_decode(filename):
             return incremented_filename
         count += 1
 
+
 def writer_process(write_queue, file_path):
     with open(file_path, 'wb') as binary_output_file:
         while True:
@@ -49,13 +51,14 @@ def writer_process(write_queue, file_path):
                 print(f"Error writing data: {e} on frame_index: {frame_index}")
                 break  # Exit on error
 
+
 def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
     metadata_starts_with = '|::-::|FILE METADATA|:-:|'
     bit_buffer = ''
     output_data = ''
-    
+
     metadata_frames = frame_step
-    
+
     while True:
         if output_data != '':
             break
@@ -93,19 +96,21 @@ def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
 
     # Check if we have the correct number of parts for our class initializer
     if len(output_data_parts) == 4:
-        transmit_file_obj = transmit_file(output_data_parts[0], output_data_parts[1], output_data_parts[2], output_data_parts[3])
+        transmit_file_obj = transmit_file(output_data_parts[0], output_data_parts[1],
+                                          output_data_parts[2], output_data_parts[3])
     else:
         print("The substring does not split into the correct number of parts.")
         sys.exit(1)
-        
+
     return metadata_frames, transmit_file_obj
+
 
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
-    
+
     if frame_index >= (num_frames - frame_step):
         data_index = config['bits_per_frame'] * math.floor(frame_index / frame_step)
-    
+
     bit_buffer = ''
     output_data = []
     bits_used_in_frame = 0
@@ -133,47 +138,52 @@ def process_frame(frame_details):
         sys.exit(1)
     return frame_index, output_data
 
+
 def count_frames(video_path):
     video = cv2.VideoCapture(video_path)
     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     video.release()
     return frame_count
 
-def process_images(video_path, encoding_map_path, debug = False):
+
+def process_images(video_path, encoding_map_path, debug=False):
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
     vid = imageio.get_reader(video_path, 'ffmpeg')
     num_frames = count_frames(video_path)
     print(f"Number of frames: {num_frames}")
-    
+
     frame_step = config['repeat_same_frame']
     frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
-    
+
     sha1 = hashlib.sha1()
-    
+
     manager = Manager()
     write_queue = manager.Queue()
     heap = []
-    
+
     pbar = tqdm(total=int(num_frames / frame_step), desc="Processing Frames")
-    metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step, num_frames)
+    metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step,
+                                                       num_frames)
     num_frames = num_frames - metadata_frames
-    
+
     stream_file = open(f"{file_metadata.name}_stream.txt", "r") if debug else None
-    
+
     next_frame_to_write = frame_start
 
-    heap = [] # Process results as they become available
-    
+    heap = []  # Process results as they become available
+
     # Create a multiprocessing pool to process the remaining frames except the first and last one
     writer_pool = Pool(1)
     available_filename = get_available_filename_to_decode(file_metadata.name)
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames) for index in range(frame_start, num_frames, frame_step))
+        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step,
+                           file_metadata.binary_length, num_frames)
+                          for index in range(frame_start, num_frames, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
-        
+
         for result in result_iterator:
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
@@ -181,14 +191,16 @@ def process_images(video_path, encoding_map_path, debug = False):
                 frame_index, output_data = return_value
                 for data_bytes in output_data:
                     sha1.update(data_bytes)
-                    
+
                     # Verify the data read from the stream_file
                     if stream_file:
                         # Read the corresponding bytes from the stream_file
                         data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
                         expected_binary_string = stream_file.read(len(data_binary_string))
                         if data_binary_string != expected_binary_string:
-                            print(f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n")
+                            print(
+                                f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n"
+                            )
                             sys.exit(1)
 
                 write_queue.put(return_value)
@@ -200,20 +212,22 @@ def process_images(video_path, encoding_map_path, debug = False):
     write_queue.put(None)
     writer_pool.close()
     writer_pool.join()
-    
+
     pbar.close()
-    
+
     stream_file and stream_file.close()
-    
+
     if sha1.hexdigest() == file_metadata.sha1:
         print("Files decoded successfully, SHA1 matched: " + available_filename)
     else:
-        print("Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " + available_filename)
+        print(
+            "Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " +
+            available_filename)
         if not debug:
             os.remove(available_filename)
-        
 
-if __name__ == "__main__":                        
+
+if __name__ == "__main__":
     video_url = input("Please enter the URL to the video file: ")
     downloadFromYT(video_url)
     process_images('video_downloaded.mp4', config['encoding_map_path'])

@@ -19,17 +19,19 @@ for frame in range(frames_count):
     img = Image.new('RGB', img_size, color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(font_path, font_size)
-    
+
     for i, char in enumerate(text):
         # Calculate position for each character to animate
         position = (10 + frame * 5 + i * font_size, 200)  # Simple horizontal movement
         draw.text(position, char, font=font, fill=(0, 0, 0))
-    
+
     # Save frame
     img.save(f"{frames_dir}/frame_{frame:03}.png")
 
 # Compile frames into a video
-frame_files = [f"{frames_dir}/{img}" for img in sorted(os.listdir(frames_dir)) if img.endswith(".png")]
+frame_files = [
+    f"{frames_dir}/{img}" for img in sorted(os.listdir(frames_dir)) if img.endswith(".png")
+]
 clip = ImageSequenceClip(frame_files, fps=frame_rate)
 clip.write_videofile("text_animation.mp4", fps=frame_rate)
 
