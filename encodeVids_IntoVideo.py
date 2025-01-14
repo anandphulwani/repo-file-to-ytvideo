@@ -11,7 +11,7 @@ from libs.file_codec import file_to_encodeddata
 config = load_config('config.ini')
 
 
-def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
+def generate_frame_args(cap, config, frame_data_iter, encoding_color_map, data_box_size_step):
     frame_index = 0
     while True:
         ret, frame = cap.read()
@@ -20,12 +20,12 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
         frame_data = next(frame_data_iter, None)
         if frame_data is None:
             break
-        yield (frame, config, encoding_color_map, frame_data, frame_index)
+        yield (frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index)
         frame_index += 1
 
 
 def encode_frame(args):
-    frame, config, encoding_color_map, frame_data, frame_index = args
+    frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index = args
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
@@ -34,8 +34,8 @@ def encode_frame(args):
           0 + config['margin']:config['frame_width'] - config['margin']] = (255, 255, 255)
 
     bits_used_in_frame = 0
-    for y in range(config['start_height'], config['end_height'], 2):
-        for x in range(config['start_width'], config['end_width'], 2):
+    for y in range(config['start_height'], config['end_height'], data_box_size_step):
+        for x in range(config['start_width'], config['end_width'], data_box_size_step):
             if bits_used_in_frame >= len(frame_data):
                 break
             try:
@@ -47,7 +47,7 @@ def encode_frame(args):
                 color = tuple(int(encoding_color_map[char][i:i + 2], 16) for i in (1, 3, 5))[::-1]
             else:
                 raise ValueError(f"Unknown character: {char} found in encoded data stream")
-            frame[y:y + 2, x:x + 2] = color
+            frame[y:y + data_box_size_step, x:x + data_box_size_step] = color
             bits_used_in_frame += 1
         if bits_used_in_frame >= len(frame_data):
             break
@@ -69,6 +69,8 @@ def check_video_file(config, cap):
 def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
+
+    data_box_size_step = config['data_box_size_step'][1]
 
     encoded_data = file_to_encodeddata(config, file_path)
     print('Encoding done.')
@@ -96,13 +98,15 @@ def process_video_frames(file_path, config):
 
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap_unordered(
-            encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map))
+            encode_frame,
+            generate_frame_args(cap, config, frame_data_iter, encoding_color_map,
+                                data_box_size_step))
 
         for result in result_iterator:
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
                 _, frame_to_write = heapq.heappop(heap)
-                for _ in range(config['repeat_same_frame']):
+                for _ in range(config['repeat_same_frame'][1]):
                     ffmpeg_process.stdin.write(frame_to_write)
                 ffmpeg_process.stdin.flush()
                 next_frame_to_write += 1
