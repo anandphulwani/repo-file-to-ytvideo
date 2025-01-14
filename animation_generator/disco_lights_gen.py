@@ -55,7 +55,7 @@
 #         screen.fill((0, 0, 0))  # Reset the screen
 
 #         pbar.update(1)  # Update the progress bar for each frame generated
-    
+
 # # Finish up
 # writer.close()
 # pygame.quit()
@@ -76,18 +76,20 @@ pygame.display.set_caption("Disco Lights Animation")
 
 # Define colors
 colors = [
-    (255, 0, 0),    # Red
-    (0, 255, 0),    # Green
-    (0, 0, 255),    # Blue
+    (255, 0, 0),  # Red
+    (0, 255, 0),  # Green
+    (0, 0, 255),  # Blue
     (255, 255, 0),  # Yellow
     (255, 0, 255),  # Magenta
     (0, 255, 255),  # Cyan
-    (255, 255, 255) # White
+    (255, 255, 255)  # White
 ]
 
 # Initialize the writer
 output_path = 'disco_lights2.mp4'
-writer = imageio.get_writer(output_path, fps=30, ffmpeg_params=['-vf', 'scale=1920:1080,format=yuv420p'])
+writer = imageio.get_writer(output_path,
+                            fps=30,
+                            ffmpeg_params=['-vf', 'scale=1920:1080,format=yuv420p'])
 # writer = imageio.get_writer(output_path, fps=30)
 
 # Main loop

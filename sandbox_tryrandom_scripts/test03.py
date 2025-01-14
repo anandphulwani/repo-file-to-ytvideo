@@ -16,11 +16,11 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    
+
     screen.fill((255, 255, 255))
     screen.blit(text, (x, y))
     x += 1  # Move text horizontally
-    
+
     pygame.display.flip()
     clock.tick(60)
 

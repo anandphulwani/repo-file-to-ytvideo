@@ -1,7 +1,8 @@
 from .find_nearest_color import find_nearest_color
 from .average_colors import average_colors
 
-def determine_color_key(frame, x, y, encoding_color_map): 
+
+def determine_color_key(frame, x, y, encoding_color_map):
     nearest_color_key = ''
     colorX1Y1 = tuple(frame[y, x])
     colorX1Y2 = ''
@@ -32,4 +33,4 @@ def determine_color_key(frame, x, y, encoding_color_map):
                 else:
                     color = average_colors(colorX1Y1, colorX1Y2, colorX2Y1, colorX2Y2)
                     nearest_color_key = find_nearest_color(color, encoding_color_map)
-    return nearest_color_key    
+    return nearest_color_key

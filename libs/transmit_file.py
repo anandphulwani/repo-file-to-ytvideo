@@ -1,4 +1,5 @@
 class transmit_file:
+
     def __init__(self, name, size, binary_length, sha1):
         self.name = name
         self.size = int(size)
