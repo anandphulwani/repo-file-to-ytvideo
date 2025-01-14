@@ -1,6 +1,3 @@
-import logging
-import sys
-import time
 import ffmpeg
 import numpy as np
 
