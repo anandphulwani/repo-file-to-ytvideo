@@ -33,14 +33,19 @@ def load_config(filename):
         else:  # Linux/Unix
             config_dict['encoding_map_path'] = config_dict['encoding_map_path'].replace('\\', '/')
 
-    if 'margin' in config_dict and 'padding' in config_dict and 'frame_width' in config_dict and 'frame_height' in config_dict:
-        config_dict['start_width'] = int(config_dict['margin']) + int(config_dict['padding'])
-        config_dict['end_width'] = int(config_dict['frame_width']) - int(
-            config_dict['margin']) - int(config_dict['padding'])
+    # Calculate derived configuration values
+    required_keys = ['margin', 'padding', 'frame_width', 'frame_height']
+    if all(key in config_dict for key in required_keys):
+        margin = int(config_dict['margin'])
+        padding = int(config_dict['padding'])
+        frame_width = int(config_dict['frame_width'])
+        frame_height = int(config_dict['frame_height'])
 
-        config_dict['start_height'] = int(config_dict['margin']) + int(config_dict['padding'])
-        config_dict['end_height'] = int(config_dict['frame_height']) - int(
-            config_dict['margin']) - int(config_dict['padding'])
+        config_dict['start_width'] = margin + padding
+        config_dict['end_width'] = frame_width - margin - padding
+
+        config_dict['start_height'] = margin + padding
+        config_dict['end_height'] = frame_height - margin - padding
 
         config_dict['usable_width'] = (config_dict['end_width'] - config_dict['start_width']) // 2
         config_dict['usable_height'] = (config_dict['end_height'] -
