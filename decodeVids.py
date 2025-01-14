@@ -154,8 +154,8 @@ def process_images(video_path, encoding_map_path, debug=False):
     num_frames = count_frames(video_path)
     print(f"Number of frames: {num_frames}")
 
-    frame_step = config['repeat_same_frame']
-    frame_start = math.ceil(frame_step / 2) + 1 if frame_step > 1 else 0
+    frame_step = config['repeat_same_frame'][1]
+    frame_start = config['pick_frame_to_read'][1]
 
     sha1 = hashlib.sha1()
 
