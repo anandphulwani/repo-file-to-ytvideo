@@ -4,10 +4,10 @@ import sys
 import json
 import cv2
 import heapq
-import ffmpeg
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
 from libs.file_codec import file_to_encodeddata
+from libs.ffmpeg_process import create_ffmpeg_process, close_ffmpeg_process
 
 config = load_config('config.ini')
 
@@ -97,6 +97,11 @@ def process_video_frames(file_path, config):
                                            'crf': 23,
                                            'bufsize': '1024k'
                                        }).overwrite_output().run_async(pipe_stdin=True))
+    # Create output directory based on input file name
+    output_dir = path.basename(file_path) + config['output_video_suffix']
+    output_dir = path.join("storage", "output", output_dir)
+    makedirs(output_dir, exist_ok=True)
+    print(f"Output directory created at: {output_dir}")
 
     next_frame_to_write = 0
     heap = []
