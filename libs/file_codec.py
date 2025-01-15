@@ -64,13 +64,47 @@ def file_to_encodeddata(config, file_path, debug=False):
 
     stream_file and stream_file.close()
 
-    # Construct the final data string with total_binary_length, file size, and file name
-    final_data = f"|::-::|FILE METADATA|:-:|{os.path.basename(file_path)}|:-:|{file_size}|:-:|{total_binary_length}|:-:|{sha1.hexdigest()}|::-::||"  # Extra pipe in the end, otherwise the previous pipe is not recognized properly and is recognized as `}` as probably it continues binary reading.
+    # ------------------------------------------
+    # STEP 1: Build the metadata WITHOUT length
+    # ------------------------------------------
+    temp_metadata = (f"|::-::|FILE METADATA"
+                     f"|:-:|{os.path.basename(file_path)}"
+                     f"|:-:|{file_size}"
+                     f"|:-:|{total_binary_length}"
+                     f"|:-:|{sha1.hexdigest()}"
+                     f"|::-::||")
 
-    # Convert final data string to binary string
-    final_data_binary = "".join(format(ord(char), format_string) for char in final_data)
+    # ------------------------------------------------
+    # STEP 2: Simple checksum (e.g. sum of ASCII % 256)
+    # ------------------------------------------------
+    checksum_value = sum(ord(c) for c in temp_metadata) % 256
+    # Append checksum for clarity
+    metadata_with_checksum = f"{temp_metadata}|CHECKSUM:{checksum_value}|"
 
-    # Yield final data in chunks of bits_per_frame
-    for i in range(0, len(final_data_binary), bits_per_frame):
-        print(f"Metadata:{i}")
-        yield final_data_binary[i:i + bits_per_frame]
+    # --------------------------------------------
+    # STEP 3: Tripling results for redundancy
+    # --------------------------------------------
+    # Repeat metadata_with_checksum 3 times
+    final_metadata = metadata_with_checksum * 3
+
+    # --------------------------------------------------------
+    # STEP 4: Convert final_metadata to binary to get its length
+    # --------------------------------------------------------
+    final_metadata_binary = "".join(format(ord(char), format_string) for char in final_metadata)
+    metadata_length_in_bits = len(final_metadata_binary)
+
+    # --------------------------------------------------------
+    # STEP 5: Prepend that length to the metadata
+    # --------------------------------------------------------
+    metadata_with_length = (f"|::-::|{metadata_length_in_bits}|::-::|"
+                            f"{final_metadata}")
+
+    # -------------------------------------------------
+    # STEP 6: Convert metadata_with_length to binary & yield
+    # -------------------------------------------------
+    metadata_with_length_binary = "".join(
+        format(ord(char), format_string) for char in metadata_with_length)
+
+    for i in range(0, len(metadata_with_length_binary), bits_per_frame):
+        print(f"Metadata chunk starting at bit: {i}")
+        yield metadata_with_length_binary[i:i + bits_per_frame]
