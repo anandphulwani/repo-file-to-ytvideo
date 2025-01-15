@@ -119,21 +119,17 @@ def process_video_frames(file_path, config):
 
                 if should_toggle_metadata or should_start_new_segment:
                     if content_and_metadata_stream:
-                        # Close current FFmpeg process
                         close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}")
 
-                    if should_toggle_metadata:
-                        # Start a new FFmpeg process for the metadata segment
-                        content_and_metadata_stream = create_ffmpeg_process(
-                            output_dir, config, None, True)
-                        print("Started FFmpeg process for metadata segment.")
-                        metadata_stream_toggle = True
-                    elif should_start_new_segment:
-                        # Increment segment index and start a new FFmpeg process for the content segment
-                        segment_index += 1
-                        content_and_metadata_stream = create_ffmpeg_process(
-                            output_dir, config, segment_index, False)
-                        print(f"Started FFmpeg process for content segment {segment_index:02d}.")
+                    # Determine parameters for create_ffmpeg_process
+                    segment_index = segment_index + 1 if should_start_new_segment else segment_index
+                    metadata_stream_toggle = True if should_toggle_metadata else metadata_stream_toggle
+                    content_and_metadata_stream = create_ffmpeg_process(
+                        output_dir, config, None if should_toggle_metadata else segment_index,
+                        should_toggle_metadata)
+                    print(
+                        f"Started FFmpeg process for {'metadata segment.' if should_toggle_metadata else f'content segment {segment_index:02d}.'}"
+                    )
 
                 # Write the frame multiple times as specified in the config
                 for _ in range(config['repeat_same_frame'][1]):
