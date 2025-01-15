@@ -8,6 +8,7 @@ from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
 from libs.file_codec import file_to_encodeddata
 from libs.ffmpeg_process import create_ffmpeg_process, close_ffmpeg_process
+from libs.merge_ts_to_mp4_dynamic_chunk import merge_ts_to_mp4_dynamic_chunk
 
 config = load_config('config.ini')
 
@@ -157,7 +158,14 @@ if __name__ == "__main__":
     # try:
     # inject_frames_to_outvideo()
 
-    process_video_frames(path.join("storage", "Test03.iso"), config)
+    file_path = path.join("storage", "Test03.iso")
+    output_dir = path.basename(file_path) + config['output_video_suffix']
+    output_dir = path.join("storage", "output", output_dir)
+
+    process_video_frames(file_path, config)
+    merge_ts_to_mp4_dynamic_chunk(output_dir, path.join("storage", "output", "Test03.iso.mp4"),
+                                  path.join("storage", "output"))
+
     # process_video_frames(path.join("storage", "gparted.iso"), config)
 
     # encoded_data = file_to_encodeddata(file_path, encoding_map_path)
