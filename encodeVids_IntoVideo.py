@@ -1,4 +1,5 @@
 import gc
+from os import path
 import sys
 import json
 import cv2
@@ -128,7 +129,9 @@ if __name__ == "__main__":
     # Encode the file
     # try:
     # inject_frames_to_outvideo()
-    process_video_frames('vlc.exe', config)
+
+    process_video_frames(path.join("storage", "Test03.iso"), config)
+    # process_video_frames(path.join("storage", "gparted.iso"), config)
 
     # encoded_data = file_to_encodeddata(file_path, encoding_map_path)
     # if encoded_data:
