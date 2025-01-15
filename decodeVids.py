@@ -230,4 +230,4 @@ def process_images(video_path, encoding_map_path, debug=False):
 if __name__ == "__main__":
     video_url = input("Please enter the URL to the video file: ")
     downloadFromYT(video_url)
-    process_images('video_downloaded.mp4', config['encoding_map_path'])
+    process_images(os.path.join("storage", "output", "Test03.iso.mp4"), config['encoding_map_path'])
