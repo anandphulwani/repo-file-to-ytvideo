@@ -18,15 +18,20 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map, data_b
         ret, frame = cap.read()
         if not ret:
             break
-        frame_data = next(frame_data_iter, None)
-        if frame_data is None:
+
+        try:
+            is_metadata, frame_data = next(frame_data_iter)
+            if frame_data is None:
+                break
+            yield (frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index,
+                   is_metadata)
+            frame_index += 1
+        except StopIteration:
             break
-        yield (frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index)
-        frame_index += 1
 
 
 def encode_frame(args):
-    frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index = args
+    frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index, is_metadata = args
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
@@ -52,7 +57,7 @@ def encode_frame(args):
             bits_used_in_frame += 1
         if bits_used_in_frame >= len(frame_data):
             break
-    return (frame_index, frame)
+    return (frame_index, frame, is_metadata)
 
 
 def check_video_file(config, cap):
