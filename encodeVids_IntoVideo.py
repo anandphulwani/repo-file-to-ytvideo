@@ -1,5 +1,5 @@
 import gc
-from os import path
+from os import path, makedirs
 import sys
 import json
 import cv2
@@ -84,24 +84,17 @@ def process_video_frames(file_path, config):
     cap = cv2.VideoCapture(config['bgr_video_path'])
     check_video_file(config, cap)
 
-    ffmpeg_process = (ffmpeg.input('pipe:',
-                                   framerate=config['output_fps'],
-                                   format='rawvideo',
-                                   pix_fmt='bgr24',
-                                   s=f'{config["frame_width"]}x{config["frame_height"]}').output(
-                                       file_path + config['output_video_suffix'],
-                                       vcodec='libx264',
-                                       pix_fmt='yuv420p',
-                                       **{
-                                           'b:v': '2000k',
-                                           'crf': 23,
-                                           'bufsize': '1024k'
-                                       }).overwrite_output().run_async(pipe_stdin=True))
     # Create output directory based on input file name
     output_dir = path.basename(file_path) + config['output_video_suffix']
     output_dir = path.join("storage", "output", output_dir)
     makedirs(output_dir, exist_ok=True)
     print(f"Output directory created at: {output_dir}")
+
+    # Initialize FFmpeg process for content segments
+    segment_index = 0
+
+    content_and_metadata_stream = None
+    metadata_stream_toggle = False
 
     next_frame_to_write = 0
     heap = []
@@ -116,10 +109,35 @@ def process_video_frames(file_path, config):
         for result in result_iterator:
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
-                _, frame_to_write = heapq.heappop(heap)
+                _, frame_to_write, is_metadata = heapq.heappop(heap)
+
+                # Determine if a new FFmpeg process needs to be started
+                should_toggle_metadata = is_metadata and not metadata_stream_toggle
+                should_start_new_segment = not is_metadata and (
+                    next_frame_to_write % config['frames_per_content_part_file'] == 0)
+
+                if should_toggle_metadata or should_start_new_segment:
+                    if content_and_metadata_stream:
+                        # Close current FFmpeg process
+                        close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}")
+
+                    if should_toggle_metadata:
+                        # Start a new FFmpeg process for the metadata segment
+                        content_and_metadata_stream = create_ffmpeg_process(
+                            output_dir, config, None, True)
+                        print("Started FFmpeg process for metadata segment.")
+                        metadata_stream_toggle = True
+                    elif should_start_new_segment:
+                        # Increment segment index and start a new FFmpeg process for the content segment
+                        segment_index += 1
+                        content_and_metadata_stream = create_ffmpeg_process(
+                            output_dir, config, segment_index, False)
+                        print(f"Started FFmpeg process for content segment {segment_index:02d}.")
+
+                # Write the frame multiple times as specified in the config
                 for _ in range(config['repeat_same_frame'][1]):
-                    ffmpeg_process.stdin.write(frame_to_write)
-                ffmpeg_process.stdin.flush()
+                    content_and_metadata_stream.stdin.write(frame_to_write)
+                content_and_metadata_stream.stdin.flush()
                 next_frame_to_write += 1
                 if len(heap) % 10 == 0:
                     gc.collect()
@@ -127,8 +145,7 @@ def process_video_frames(file_path, config):
 
     # Release everything if the job is finished
     cap.release()
-    ffmpeg_process.stdin.close()
-    ffmpeg_process.wait()
+    close_ffmpeg_process(content_and_metadata_stream, "Metadata")
     print("Modification is done.")
 
 
