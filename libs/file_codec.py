@@ -11,6 +11,11 @@ def file_to_encodeddata(config, file_path, debug=False):
     A single-pass generator that reads the file once, computing SHA1 hash
     and total bit-length on the fly, and yields the final metadata bits
     at the end.
+    
+    Yields:
+        Tuple[bool, str]: A tuple where the first element is a flag indicating
+                          whether the data is metadata, and the second element
+                          is the data chunk.
     """
     bits_per_frame = config['bits_per_frame']
 
@@ -39,7 +44,7 @@ def file_to_encodeddata(config, file_path, debug=False):
 
                 if not file_chunk:
                     if buffer:
-                        yield buffer  # Yield any remaining data in the buffer at EOF
+                        yield (False, buffer)  # Yield any remaining data in the buffer at EOF
                         total_binary_length += len(buffer)
                         stream_file and stream_file.write(buffer)
                     break
@@ -57,7 +62,7 @@ def file_to_encodeddata(config, file_path, debug=False):
                 # Yield data in exactly `bits_per_frame` length chunks
                 while len(buffer) >= bits_per_frame:
                     data_to_yield = buffer[:bits_per_frame]
-                    yield data_to_yield
+                    yield (False, data_to_yield)  # Regular file data
                     total_binary_length += len(data_to_yield)
                     buffer = buffer[bits_per_frame:]  # Remove the yielded part from buffer
                     stream_file and stream_file.write(data_to_yield)
@@ -107,4 +112,5 @@ def file_to_encodeddata(config, file_path, debug=False):
 
     for i in range(0, len(metadata_with_length_binary), bits_per_frame):
         print(f"Metadata chunk starting at bit: {i}")
-        yield metadata_with_length_binary[i:i + bits_per_frame]
+        metadata_chunk = metadata_with_length_binary[i:i + bits_per_frame]
+        yield (True, metadata_chunk)  # Metadata data
