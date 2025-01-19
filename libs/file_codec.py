@@ -20,7 +20,7 @@ def file_to_encodeddata(config, file_path, debug=False):
     bits_per_frame = config['bits_per_frame']
 
     sha1 = hashlib.sha1()
-    stream_file = open(f"{file_path}_stream.txt", "w") if debug else None
+    stream_encoded_file = open(f"{file_path}_encoded_stream.txt", "w") if debug else None
 
     base, format_string = detect_base_from_json(config)
     print(f"Base is {base}")
@@ -46,7 +46,7 @@ def file_to_encodeddata(config, file_path, debug=False):
                     if buffer:
                         yield (False, buffer)  # Yield any remaining data in the buffer at EOF
                         total_binary_length += len(buffer)
-                        stream_file and stream_file.write(buffer)
+                        stream_encoded_file and stream_encoded_file.write(buffer)
                     break
 
                 # Update the progress bar with the number of bytes read
@@ -65,9 +65,9 @@ def file_to_encodeddata(config, file_path, debug=False):
                     yield (False, data_to_yield)  # Regular file data
                     total_binary_length += len(data_to_yield)
                     buffer = buffer[bits_per_frame:]  # Remove the yielded part from buffer
-                    stream_file and stream_file.write(data_to_yield)
+                    stream_encoded_file and stream_encoded_file.write(data_to_yield)
 
-    stream_file and stream_file.close()
+    stream_encoded_file and stream_encoded_file.close()
 
     # ------------------------------------------
     # STEP 1: Build the metadata WITHOUT length

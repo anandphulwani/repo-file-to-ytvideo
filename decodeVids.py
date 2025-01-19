@@ -244,7 +244,7 @@ def process_images(video_path, encoding_map_path, debug=False):
                                                        num_frames)
     num_frames = num_frames - metadata_frames
 
-    stream_file = open(f"{file_metadata.name}_stream.txt", "r") if debug else None
+    stream_encoded_file = open(f"{file_metadata.name}_encoded_stream.txt", "r") if debug else None
 
     next_frame_to_write = frame_start
 
@@ -268,11 +268,11 @@ def process_images(video_path, encoding_map_path, debug=False):
                 for data_bytes in output_data:
                     sha1.update(data_bytes)
 
-                    # Verify the data read from the stream_file
-                    if stream_file:
-                        # Read the corresponding bytes from the stream_file
+                    # Verify the data read from the stream_encoded_file
+                    if stream_encoded_file:
+                        # Read the corresponding bytes from the stream_encoded_file
                         data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
-                        expected_binary_string = stream_file.read(len(data_binary_string))
+                        expected_binary_string = stream_encoded_file.read(len(data_binary_string))
                         if data_binary_string != expected_binary_string:
                             print(
                                 f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n"
@@ -291,7 +291,7 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     pbar.close()
 
-    stream_file and stream_file.close()
+    stream_encoded_file and stream_encoded_file.close()
 
     if sha1.hexdigest() == file_metadata.sha1:
         print("Files decoded successfully, SHA1 matched: " + available_filename)
