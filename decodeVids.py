@@ -245,6 +245,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     num_frames = num_frames - metadata_frames
 
     stream_encoded_file = open(f"{file_metadata.name}_encoded_stream.txt", "r") if debug else None
+    stream_decoded_file = open(f"{file_metadata.name}_decoded_stream.txt", "w") if debug else None
 
     next_frame_to_write = frame_start
 
@@ -272,6 +273,7 @@ def process_images(video_path, encoding_map_path, debug=False):
                     if stream_encoded_file:
                         # Read the corresponding bytes from the stream_encoded_file
                         data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
+                        stream_decoded_file and stream_decoded_file.write(data_binary_string)
                         expected_binary_string = stream_encoded_file.read(len(data_binary_string))
                         if data_binary_string != expected_binary_string:
                             print(
