@@ -77,7 +77,7 @@ def file_to_encodeddata(config, file_path, debug=False):
                      f"|:-:|{file_size}"
                      f"|:-:|{total_binary_length}"
                      f"|:-:|{sha1.hexdigest()}"
-                     f"|::-::||")
+                     f"|::-::|")
 
     # ------------------------------------------------
     # STEP 2: Simple checksum (e.g. sum of ASCII % 256)
