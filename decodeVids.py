@@ -184,8 +184,9 @@ def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
 
-    if frame_index >= (num_frames - frame_step):
-        data_index = config['bits_per_frame'] * math.floor(frame_index / frame_step)
+    data_index = config['bits_per_frame'] * math.floor(
+        (frame_index - frame_step) / frame_step) if frame_index == (
+            num_frames - frame_step + config['pick_frame_to_read'][1]) else None
 
     bit_buffer = ''
     output_data = []
@@ -195,19 +196,19 @@ def process_frame(frame_details):
     while y < config['end_height']:
         for x in range(config['start_width'], config['end_width'], 2):
             if bits_used_in_frame >= config['bits_per_frame'] or \
-                (frame_index >= (num_frames - frame_step) and data_index >= total_binary_length):
+                (data_index and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
             bit_buffer += nearest_color_key
             if len(bit_buffer) == 8:
                 output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
                 bit_buffer = ''
-            if frame_index >= (num_frames - frame_step):
+            if data_index:
                 data_index += 1
             bits_used_in_frame += 1
         y += 2
         if bits_used_in_frame >= config['bits_per_frame'] or \
-            (frame_index >= (num_frames - frame_step) and data_index >= total_binary_length):
+            (data_index and data_index >= total_binary_length):
             break
     if len(bit_buffer) != 0:
         print('bit_buffer is not empty.')
@@ -238,10 +239,13 @@ def process_images(video_path, encoding_map_path, debug=False):
     write_queue = manager.Queue()
     heap = []
 
-    pbar = tqdm(total=int(num_frames / frame_step), desc="Processing Frames")
     metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step,
                                                        num_frames)
+
     frame_start = metadata_frames + config['pick_frame_to_read'][1]
+
+    pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step),
+                desc="Processing Frames")
 
     stream_encoded_file = open(f"{file_metadata.name}_encoded_stream.txt", "r") if debug else None
     stream_decoded_file = open(f"{file_metadata.name}_decoded_stream.txt", "w") if debug else None
