@@ -231,7 +231,6 @@ def process_images(video_path, encoding_map_path, debug=False):
     print(f"Number of frames: {num_frames}")
 
     frame_step = config['repeat_same_frame'][1]
-    frame_start = config['pick_frame_to_read'][1]
 
     sha1 = hashlib.sha1()
 
@@ -242,7 +241,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     pbar = tqdm(total=int(num_frames / frame_step), desc="Processing Frames")
     metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step,
                                                        num_frames)
-    num_frames = num_frames - metadata_frames
+    frame_start = metadata_frames + config['pick_frame_to_read'][1]
 
     stream_encoded_file = open(f"{file_metadata.name}_encoded_stream.txt", "r") if debug else None
     stream_decoded_file = open(f"{file_metadata.name}_decoded_stream.txt", "w") if debug else None
