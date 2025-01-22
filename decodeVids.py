@@ -199,19 +199,19 @@ def process_frame(frame_details):
     while y < config['end_height']:
         for x in range(config['start_width'], config['end_width'], config['data_box_size_step'][1]):
             if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
-                (data_index and data_index >= total_binary_length):
+                (data_index is not None and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
             bit_buffer += nearest_color_key
             if len(bit_buffer) == 8:
                 output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
                 bit_buffer = ''
-            if data_index:
+            if data_index is not None:
                 data_index += 1
             bits_used_in_frame += 1
         y += config['data_box_size_step'][1]
         if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
-            (data_index and data_index >= total_binary_length):
+            (data_index is not None and data_index >= total_binary_length):
             break
     if len(bit_buffer) != 0:
         print('bit_buffer is not empty.')
