@@ -67,13 +67,14 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
     while True:
         if output_data != '':
             break
-        for frame_index in range(2, num_frames, frame_step):
+        for frame_index in range(config['pick_frame_to_read'][0], num_frames, frame_step):
             metadata_frames = frame_index - config['pick_frame_to_read'][0] + frame_step
 
             frame = vid.get_data(frame_index)
             y = config['start_height']
             while y < config['end_height']:
-                for x in range(config['start_width'], config['end_width'], 2):
+                for x in range(config['start_width'], config['end_width'],
+                               config['data_box_size_step'][0]):
                     # Look for the metadata length prefix
                     if metadata_length is None and len(output_data) > len(
                             metadata_main_delimiter) and output_data.endswith(
@@ -95,7 +96,7 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
                     if metadata_length and metadata_bit_count >= metadata_length:
                         break  # Exit the inner loops once metadata is fully read
                 else:
-                    y += 2
+                    y += config['data_box_size_step'][0]
                     continue  # Continue `while y` loop, Only reached if its inner loop was not forcefully broken
                 break  # Break out of `while y` loop
             else:
@@ -196,7 +197,7 @@ def process_frame(frame_details):
 
     y = config['start_height']
     while y < config['end_height']:
-        for x in range(config['start_width'], config['end_width'], 2):
+        for x in range(config['start_width'], config['end_width'], config['data_box_size_step'][1]):
             if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
                 (data_index and data_index >= total_binary_length):
                 break
@@ -208,7 +209,7 @@ def process_frame(frame_details):
             if data_index:
                 data_index += 1
             bits_used_in_frame += 1
-        y += 2
+        y += config['data_box_size_step'][1]
         if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
             (data_index and data_index >= total_binary_length):
             break
