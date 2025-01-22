@@ -133,9 +133,9 @@ def process_video_frames(file_path, config):
                     )
 
                 # Write the frame multiple times as specified in the config
-                repeat_same_frame = config['repeat_same_frame'][0] if is_metadata else config[
-                    'repeat_same_frame'][1]
-                for _ in range(repeat_same_frame):
+                total_frames_repetition = config['total_frames_repetition'][
+                    0] if is_metadata else config['total_frames_repetition'][1]
+                for _ in range(total_frames_repetition):
                     content_and_metadata_stream.stdin.write(frame_to_write)
                 content_and_metadata_stream.stdin.flush()
                 next_frame_to_write += 1

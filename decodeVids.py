@@ -62,7 +62,7 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 
     metadata_length = None
 
-    frame_step = config['repeat_same_frame'][0]
+    frame_step = config['total_frames_repetition'][0]
 
     usable_width = config['usable_width'][0]
     usable_height = config['usable_height'][0]
@@ -253,7 +253,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, num_frames)
 
     frame_start = metadata_frames + config['pick_frame_to_read'][1]
-    frame_step = config['repeat_same_frame'][1]
+    frame_step = config['total_frames_repetition'][1]
 
     pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step),
                 desc="Processing Frames")
