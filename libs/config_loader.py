@@ -47,8 +47,21 @@ def load_config(filename):
             # Ensure all elements are integers
             if not all(isinstance(item, int) for item in config_dict[key]):
                 raise ValueError(f"All elements in '{key}' must be integers.")
+        elif key == 'allow_byte_to_be_split_between_frames':
+            # Parse and validate boolean value
+            lower_value = value.lower().strip()
+            if lower_value in ['true', 'yes', '1']:
+                config_dict[key] = True
+            elif lower_value in ['false', 'no', '0']:
+                config_dict[key] = False
+            else:
+                raise ValueError(f"Invalid boolean value for '{key}': {value}")
         else:
             config_dict[key] = convert_to_appropriate_type(value)
+
+    # Ensure 'allow_byte_to_be_split_between_frames' has a default value
+    if 'allow_byte_to_be_split_between_frames' not in config_dict:
+        config_dict['allow_byte_to_be_split_between_frames'] = False
 
     # Adjust encoding_map_path based on the OS
     if 'encoding_map_path' in config_dict:
