@@ -60,7 +60,6 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
     output_data = ''
     metadata_bit_count = 0
 
-    metadata_frames = frame_step
     metadata_length = None
 
     frame_step = config['repeat_same_frame'][0]
@@ -69,6 +68,8 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
         if output_data != '':
             break
         for frame_index in range(2, num_frames, frame_step):
+            metadata_frames = frame_index - config['pick_frame_to_read'][0] + frame_step
+
             frame = vid.get_data(frame_index)
             y = config['start_height']
             while y < config['end_height']:
