@@ -13,7 +13,7 @@ from libs.merge_ts_to_mp4_dynamic_chunk import merge_ts_to_mp4_dynamic_chunk
 config = load_config('config.ini')
 
 
-def generate_frame_args(cap, config, frame_data_iter, encoding_color_map, data_box_size_step):
+def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
     frame_index = 0
     while True:
         ret, frame = cap.read()
@@ -24,15 +24,16 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map, data_b
             is_metadata, frame_data = next(frame_data_iter)
             if frame_data is None:
                 break
-            yield (frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index,
-                   is_metadata)
+            yield (frame, config, encoding_color_map, frame_data, frame_index, is_metadata)
             frame_index += 1
         except StopIteration:
             break
 
 
 def encode_frame(args):
-    frame, config, encoding_color_map, data_box_size_step, frame_data, frame_index, is_metadata = args
+    frame, config, encoding_color_map, frame_data, frame_index, is_metadata = args
+    data_box_size_step = config['data_box_size_step'][0] if is_metadata else config[
+        'data_box_size_step'][1]
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
@@ -77,8 +78,6 @@ def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
 
-    data_box_size_step = config['data_box_size_step'][1]
-
     encoded_data = file_to_encodeddata(config, file_path)
     print('Encoding done.')
 
@@ -103,9 +102,7 @@ def process_video_frames(file_path, config):
 
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap_unordered(
-            encode_frame,
-            generate_frame_args(cap, config, frame_data_iter, encoding_color_map,
-                                data_box_size_step))
+            encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map))
 
         for result in result_iterator:
             heapq.heappush(heap, result)
