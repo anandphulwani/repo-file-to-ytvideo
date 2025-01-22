@@ -84,13 +84,6 @@ def load_config(filename):
         config_dict['start_height'] = margin + padding
         config_dict['end_height'] = frame_height - margin - padding
 
-        config_dict['usable_width'] = (config_dict['end_width'] - config_dict['start_width']) // 2
-        config_dict['usable_height'] = (config_dict['end_height'] -
-                                        config_dict['start_height']) // 2
-
-        config_dict['usable_bits_in_frame'] = math.floor(
-            (config_dict['usable_width'] * config_dict['usable_height']) / 8) * 8
-
     # Validation Rule 1:
     if 'pick_frame_to_read' in config_dict and 'repeat_same_frame' in config_dict:
         pick = config_dict['pick_frame_to_read']
@@ -111,4 +104,19 @@ def load_config(filename):
                 raise ValueError(f"'data_box_size_step' at index {idx} ({step}) "
                                  f"must be between 1 and 50 (inclusive).")
 
+    config_dict['usable_width'] = []
+    config_dict['usable_height'] = []
+    config_dict['usable_bits_in_frame'] = []
+    config_dict['available_width'] = config_dict['end_width'] - config_dict['start_width']
+    config_dict['available_height'] = config_dict['end_height'] - config_dict['start_height']
+
+    for box_size in config_dict['data_box_size_step']:
+        usable_width = (config_dict['available_width'] // box_size) * box_size
+        usable_height = (config_dict['available_height'] // box_size) * box_size
+        config_dict['usable_width'].append(usable_width)
+        config_dict['usable_height'].append(usable_height)
+        usable_bits_in_frame = (usable_width // box_size) * (usable_height // box_size)
+        usable_bits_in_frame = usable_bits_in_frame if config_dict[
+            'allow_byte_to_be_split_between_frames'] else ((usable_bits_in_frame // 8) * 8)
+        config_dict['usable_bits_in_frame'].append(usable_bits_in_frame)
     return config_dict
