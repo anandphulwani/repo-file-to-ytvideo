@@ -88,9 +88,9 @@ def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
                         output_data += decoded_char.decode('utf-8', errors='ignore')
                         bit_buffer = ''
 
-                        # Check if we've received enough data based on metadata_length
-                        if metadata_length and metadata_bit_count >= metadata_length:
-                            break  # Exit the inner loops once metadata is fully read
+                    # Check if we've received enough data based on metadata_length
+                    if metadata_length and metadata_bit_count >= metadata_length:
+                        break  # Exit the inner loops once metadata is fully read
                 else:
                     y += 2
                     continue  # Continue `while y` loop, Only reached if its inner loop was not forcefully broken
