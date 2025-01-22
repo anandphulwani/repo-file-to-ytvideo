@@ -78,7 +78,7 @@ def process_video_frames(file_path, config):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
 
-    encoded_data = file_to_encodeddata(config, file_path)
+    frame_data_iter = iter(file_to_encodeddata(config, file_path))
     print('Encoding done.')
 
     cap = cv2.VideoCapture(config['bgr_video_path'])
@@ -98,7 +98,6 @@ def process_video_frames(file_path, config):
 
     next_frame_to_write = 0
     heap = []
-    frame_data_iter = iter(encoded_data)
 
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap_unordered(
