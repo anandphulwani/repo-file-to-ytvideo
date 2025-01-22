@@ -41,7 +41,7 @@ def load_config(filename):
 
     config_dict = {}
     for key, value in config_items:
-        if key in ['repeat_same_frame', 'pick_frame_to_read', 'data_box_size_step']:
+        if key in ['total_frames_repetition', 'pick_frame_to_read', 'data_box_size_step']:
             # Parse the list from JSON format
             config_dict[key] = parse_list(value)
             # Ensure all elements are integers
@@ -85,16 +85,16 @@ def load_config(filename):
         config_dict['end_height'] = frame_height - margin - padding
 
     # Validation Rule 1:
-    if 'pick_frame_to_read' in config_dict and 'repeat_same_frame' in config_dict:
+    if 'pick_frame_to_read' in config_dict and 'total_frames_repetition' in config_dict:
         pick = config_dict['pick_frame_to_read']
-        repeat = config_dict['repeat_same_frame']
-        if len(pick) != len(repeat):
-            raise ValueError("Length of 'pick_frame_to_read' must match 'repeat_same_frame'.")
+        total_frames_repetition = config_dict['total_frames_repetition']
+        if len(pick) != len(total_frames_repetition):
+            raise ValueError("Length of 'pick_frame_to_read' must match 'total_frames_repetition'.")
 
-        for idx, (p, r) in enumerate(zip(pick, repeat)):
+        for idx, (p, r) in enumerate(zip(pick, total_frames_repetition)):
             if p > r:
                 raise ValueError(f"'pick_frame_to_read' at index {idx} ({p}) "
-                                 f"cannot be greater than 'repeat_same_frame' ({r}).")
+                                 f"cannot be greater than 'total_frames_repetition' ({r}).")
 
     # Validation Rule 2:
     if 'data_box_size_step' in config_dict:
