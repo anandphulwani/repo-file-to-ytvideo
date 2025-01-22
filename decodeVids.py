@@ -52,7 +52,7 @@ def writer_process(write_queue, file_path):
                 break  # Exit on error
 
 
-def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
+def get_file_metadata(vid, encoding_color_map, num_frames):
     # Initialize variables
     metadata_main_delimiter = '|::-::|'
     metadata_sub_delimiter = '|:-:|'
@@ -62,6 +62,8 @@ def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
 
     metadata_frames = frame_step
     metadata_length = None
+
+    frame_step = config['repeat_same_frame'][0]
 
     while True:
         if output_data != '':
@@ -237,8 +239,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     write_queue = manager.Queue()
     heap = []
 
-    metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, frame_step,
-                                                       num_frames)
+    metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, num_frames)
 
     frame_start = metadata_frames + config['pick_frame_to_read'][1]
     frame_step = config['repeat_same_frame'][1]
