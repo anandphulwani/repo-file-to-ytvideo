@@ -34,6 +34,9 @@ def encode_frame(args):
     frame, config, encoding_color_map, frame_data, frame_index, is_metadata = args
     data_box_size_step = config['data_box_size_step'][0] if is_metadata else config[
         'data_box_size_step'][1]
+    usable_width = config['usable_width'][0] if is_metadata else config['usable_width'][1]
+    usable_height = config['usable_height'][0] if is_metadata else config['usable_height'][1]
+
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
         sys.exit(1)
@@ -42,8 +45,10 @@ def encode_frame(args):
           0 + config['margin']:config['frame_width'] - config['margin']] = (255, 255, 255)
 
     bits_used_in_frame = 0
-    for y in range(config['start_height'], config['end_height'], data_box_size_step):
-        for x in range(config['start_width'], config['end_width'], data_box_size_step):
+    for y in range(config['start_height'], config['start_height'] + usable_height,
+                   data_box_size_step):
+        for x in range(config['start_width'], config['start_width'] + usable_width,
+                       data_box_size_step):
             if bits_used_in_frame >= len(frame_data):
                 break
             try:
