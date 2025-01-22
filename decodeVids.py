@@ -191,8 +191,9 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = frame_details
     data_index = config['usable_bits_in_frame'][1] * math.floor(
-        (frame_index - frame_step) / frame_step) if frame_index == (
-            num_frames - frame_step + config['pick_frame_to_read'][1]) else None
+        (frame_index - metadata_frames - config['pick_frame_to_read'][1]) /
+        frame_step) if frame_index == (num_frames - frame_step +
+                                       config['pick_frame_to_read'][1]) else None
 
     bit_buffer = ''
     output_data = []
