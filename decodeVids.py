@@ -184,7 +184,7 @@ def get_file_metadata(vid, encoding_color_map, frame_step, num_frames):
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
 
-    data_index = config['usable_bits_in_frame'] * math.floor(
+    data_index = config['usable_bits_in_frame'][1] * math.floor(
         (frame_index - frame_step) / frame_step) if frame_index == (
             num_frames - frame_step + config['pick_frame_to_read'][1]) else None
 
@@ -195,7 +195,7 @@ def process_frame(frame_details):
     y = config['start_height']
     while y < config['end_height']:
         for x in range(config['start_width'], config['end_width'], 2):
-            if bits_used_in_frame >= config['usable_bits_in_frame'] or \
+            if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
                 (data_index and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
@@ -207,7 +207,7 @@ def process_frame(frame_details):
                 data_index += 1
             bits_used_in_frame += 1
         y += 2
-        if bits_used_in_frame >= config['usable_bits_in_frame'] or \
+        if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
             (data_index and data_index >= total_binary_length):
             break
     if len(bit_buffer) != 0:
