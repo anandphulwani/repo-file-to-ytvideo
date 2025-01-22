@@ -75,7 +75,7 @@ def load_config(filename):
         config_dict['usable_height'] = (config_dict['end_height'] -
                                         config_dict['start_height']) // 2
 
-        config_dict['bits_per_frame'] = math.floor(
+        config_dict['usable_bits_in_frame'] = math.floor(
             (config_dict['usable_width'] * config_dict['usable_height']) / 8) * 8
 
     # Validation Rule 1:
