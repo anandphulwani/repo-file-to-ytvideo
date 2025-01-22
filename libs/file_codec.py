@@ -17,7 +17,7 @@ def file_to_encodeddata(config, file_path, debug=False):
                           whether the data is metadata, and the second element
                           is the data chunk.
     """
-    bits_per_frame = config['bits_per_frame']
+    usable_bits_in_frame = config['usable_bits_in_frame']
 
     sha1 = hashlib.sha1()
     stream_encoded_file = open(f"{file_path}_encoded_stream.txt", "w") if debug else None
@@ -38,7 +38,7 @@ def file_to_encodeddata(config, file_path, debug=False):
         with tqdm(total=file_size, desc="Processing File", unit="B", unit_scale=True) as pbar:
             while True:
                 # Determine how many bytes to read:
-                needed_bits = bits_per_frame - len(buffer)
+                needed_bits = usable_bits_in_frame - len(buffer)
                 bytes_to_read = math.ceil(needed_bits / 8)
                 file_chunk = file.read(bytes_to_read)
 
@@ -59,12 +59,12 @@ def file_to_encodeddata(config, file_path, debug=False):
                 # Add new bits to buffer
                 buffer += chunk_bits
 
-                # Yield data in exactly `bits_per_frame` length chunks
-                while len(buffer) >= bits_per_frame:
-                    data_to_yield = buffer[:bits_per_frame]
+                # Yield data in exactly `usable_bits_in_frame` length chunks
+                while len(buffer) >= usable_bits_in_frame:
+                    data_to_yield = buffer[:usable_bits_in_frame]
                     yield (False, data_to_yield)  # Regular file data
                     total_binary_length += len(data_to_yield)
-                    buffer = buffer[bits_per_frame:]  # Remove the yielded part from buffer
+                    buffer = buffer[usable_bits_in_frame:]  # Remove the yielded part from buffer
                     stream_encoded_file and stream_encoded_file.write(data_to_yield)
 
     stream_encoded_file and stream_encoded_file.close()
@@ -110,7 +110,7 @@ def file_to_encodeddata(config, file_path, debug=False):
     metadata_with_length_binary = "".join(
         format(ord(char), format_string) for char in metadata_with_length)
 
-    for i in range(0, len(metadata_with_length_binary), bits_per_frame):
+    for i in range(0, len(metadata_with_length_binary), usable_bits_in_frame):
         print(f"Metadata chunk starting at bit: {i}")
-        metadata_chunk = metadata_with_length_binary[i:i + bits_per_frame]
+        metadata_chunk = metadata_with_length_binary[i:i + usable_bits_in_frame]
         yield (True, metadata_chunk)  # Metadata data
