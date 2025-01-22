@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import os
 import sys
-import math
 import hashlib
 from .detect_base_from_json import detect_base_from_json
 
@@ -39,7 +38,7 @@ def file_to_encodeddata(config, file_path, debug=False):
             while True:
                 # Determine how many bytes to read:
                 needed_bits = usable_bits_in_frame[1] - len(buffer)
-                bytes_to_read = math.ceil(needed_bits / 8)
+                bytes_to_read = needed_bits // 8
                 file_chunk = file.read(bytes_to_read)
 
                 if not file_chunk:
