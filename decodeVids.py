@@ -214,7 +214,9 @@ def process_frame(frame_details):
             (data_index is not None and data_index >= total_binary_length):
             break
     if len(bit_buffer) != 0:
-        print('bit_buffer is not empty.')
+        print("bit_buffer is not empty, currently it holds: ", bit_buffer, ", bits_used_in_frame: ",
+              bits_used_in_frame, ", config['usable_bits_in_frame'][1]: ",
+              config['usable_bits_in_frame'][1])
         sys.exit(1)
     return frame_index, output_data
 
