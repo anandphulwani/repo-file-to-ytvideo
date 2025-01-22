@@ -64,6 +64,9 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 
     frame_step = config['repeat_same_frame'][0]
 
+    usable_width = config['usable_width'][0]
+    usable_height = config['usable_height'][0]
+
     while True:
         if output_data != '':
             break
@@ -72,8 +75,8 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 
             frame = vid.get_data(frame_index)
             y = config['start_height']
-            while y < config['end_height']:
-                for x in range(config['start_width'], config['end_width'],
+            while y < config['start_height'] + usable_height:
+                for x in range(config['start_width'], config['start_width'] + usable_width,
                                config['data_box_size_step'][0]):
                     # Look for the metadata length prefix
                     if metadata_length is None and len(output_data) > len(
@@ -195,9 +198,13 @@ def process_frame(frame_details):
     output_data = []
     bits_used_in_frame = 0
 
+    usable_width = config['usable_width'][1]
+    usable_height = config['usable_height'][1]
+
     y = config['start_height']
-    while y < config['end_height']:
-        for x in range(config['start_width'], config['end_width'], config['data_box_size_step'][1]):
+    while y < config['start_height'] + usable_height:
+        for x in range(config['start_width'], config['start_width'] + usable_width,
+                       config['data_box_size_step'][1]):
             if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
                 (data_index is not None and data_index >= total_binary_length):
                 break
