@@ -185,8 +185,7 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 
 
 def process_frame(frame_details):
-    frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames = frame_details
-
+    frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = frame_details
     data_index = config['usable_bits_in_frame'][1] * math.floor(
         (frame_index - frame_step) / frame_step) if frame_index == (
             num_frames - frame_step + config['pick_frame_to_read'][1]) else None
@@ -261,7 +260,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
         frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step,
-                           file_metadata.binary_length, num_frames)
+                           file_metadata.binary_length, num_frames, metadata_frames)
                           for index in range(frame_start, num_frames, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
 
