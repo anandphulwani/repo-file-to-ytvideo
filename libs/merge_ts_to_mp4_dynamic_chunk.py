@@ -16,8 +16,7 @@ def extract_frame(ts_file, output_dir, frame_number=3):
     - frame_number (int): The frame number to extract (default is 3).
     """
     # Generate the output frame file path
-    frame_output_path = os.path.join(output_dir,
-                                     f"frame{frame_number:03d}_{os.path.basename(ts_file)}.jpg")
+    frame_output_path = os.path.join(output_dir, f"frame{frame_number:03d}_{os.path.basename(ts_file)}.jpg")
 
     try:
         # Use the 'select' filter for sequential frame extraction
@@ -90,9 +89,7 @@ def merge_ts_to_mp4_dynamic_chunk(
         return chunk_size
 
     # Gather and sort .ts files
-    ts_files = [
-        os.path.join(input_directory, f) for f in os.listdir(input_directory) if f.endswith('.ts')
-    ]
+    ts_files = [os.path.join(input_directory, f) for f in os.listdir(input_directory) if f.endswith('.ts')]
 
     if not ts_files:
         print("No .ts files found in the specified directory.")
@@ -110,14 +107,8 @@ def merge_ts_to_mp4_dynamic_chunk(
     try:
         process = (
             ffmpeg.input('pipe:0', format='mpegts')  # Specify format if necessary
-            .output(final_output_path,
-                    format='mp4',
-                    vcodec='libx264',
-                    acodec='aac',
-                    strict='experimental',
-                    movflags='faststart').overwrite_output().run_async(pipe_stdin=True,
-                                                                       pipe_stdout=True,
-                                                                       pipe_stderr=True))
+            .output(final_output_path, format='mp4', vcodec='libx264', acodec='aac', strict='experimental',
+                    movflags='faststart').overwrite_output().run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True))
     except ffmpeg.Error as e:
         print(f"Failed to start FFmpeg: {e.stderr.decode()}")
         return

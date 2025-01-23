@@ -106,8 +106,7 @@ def file_to_encodeddata(config, file_path, debug=False):
     # -------------------------------------------------
     # STEP 6: Convert metadata_with_length to binary & yield
     # -------------------------------------------------
-    metadata_with_length_binary = "".join(
-        format(ord(char), format_string) for char in metadata_with_length)
+    metadata_with_length_binary = "".join(format(ord(char), format_string) for char in metadata_with_length)
 
     for i in range(0, len(metadata_with_length_binary), usable_bits_in_frame[0]):
         print(f"Metadata chunk starting at bit: {i}")

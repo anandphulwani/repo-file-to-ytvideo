@@ -87,9 +87,7 @@ colors = [
 
 # Initialize the writer
 output_path = 'disco_lights2.mp4'
-writer = imageio.get_writer(output_path,
-                            fps=30,
-                            ffmpeg_params=['-vf', 'scale=1920:1080,format=yuv420p'])
+writer = imageio.get_writer(output_path, fps=30, ffmpeg_params=['-vf', 'scale=1920:1080,format=yuv420p'])
 # writer = imageio.get_writer(output_path, fps=30)
 
 # Main loop

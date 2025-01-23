@@ -29,9 +29,7 @@ for frame in range(frames_count):
     img.save(f"{frames_dir}/frame_{frame:03}.png")
 
 # Compile frames into a video
-frame_files = [
-    f"{frames_dir}/{img}" for img in sorted(os.listdir(frames_dir)) if img.endswith(".png")
-]
+frame_files = [f"{frames_dir}/{img}" for img in sorted(os.listdir(frames_dir)) if img.endswith(".png")]
 clip = ImageSequenceClip(frame_files, fps=frame_rate)
 clip.write_videofile("text_animation.mp4", fps=frame_rate)
 
