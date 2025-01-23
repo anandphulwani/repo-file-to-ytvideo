@@ -12,15 +12,14 @@ def create_ffmpeg_process(output_dir, config, segment_idx, is_metadata):
                          framerate=config['output_fps'],
                          format='rawvideo',
                          pix_fmt='bgr24',
-                         s=f'{config["frame_width"]}x{config["frame_height"]}').output(
-                             content_output_path,
-                             f='mpegts',
-                             vcodec='libx264',
-                             pix_fmt='yuv420p',
-                             b='2000k',
-                             crf=23,
-                             bufsize='1024k').global_args('-loglevel',
-                                                          'error').run_async(pipe_stdin=True))
+                         s=f'{config["frame_width"]}x{config["frame_height"]}').output(content_output_path,
+                                                                                       f='mpegts',
+                                                                                       vcodec='libx264',
+                                                                                       pix_fmt='yuv420p',
+                                                                                       b='2000k',
+                                                                                       crf=23,
+                                                                                       bufsize='1024k').global_args(
+                                                                                           '-loglevel', 'error').run_async(pipe_stdin=True))
 
 
 def close_ffmpeg_process(ffmpeg_process, segment_index):

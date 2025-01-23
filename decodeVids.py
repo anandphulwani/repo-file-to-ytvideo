@@ -76,12 +76,9 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
             frame = vid.get_data(frame_index)
             y = config['start_height']
             while y < config['start_height'] + usable_height:
-                for x in range(config['start_width'], config['start_width'] + usable_width,
-                               config['data_box_size_step'][0]):
+                for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][0]):
                     # Look for the metadata length prefix
-                    if metadata_length is None and len(output_data) > len(
-                            metadata_main_delimiter) and output_data.endswith(
-                                metadata_main_delimiter):
+                    if metadata_length is None and len(output_data) > len(metadata_main_delimiter) and output_data.endswith(metadata_main_delimiter):
                         output_data = output_data.replace(metadata_main_delimiter, "")
                         metadata_length = int(output_data)
                         output_data = ''
@@ -157,10 +154,8 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
     # Split the actual_metadata into parts
     # Expected format:
     # |::-::|FILE METADATA|:-:|{file_basename}|:-:|{file_size}|:-:|{total_binary_length}|:-:|{sha1_hash}|::-::|
-    if actual_metadata.startswith(metadata_main_delimiter) and actual_metadata.endswith(
-            metadata_main_delimiter):
-        actual_metadata = actual_metadata[len(metadata_main_delimiter
-                                              ):-len(metadata_main_delimiter)]
+    if actual_metadata.startswith(metadata_main_delimiter) and actual_metadata.endswith(metadata_main_delimiter):
+        actual_metadata = actual_metadata[len(metadata_main_delimiter):-len(metadata_main_delimiter)]
     else:
         print(f"Metadata delimiter ({metadata_main_delimiter}) mismatch.")
         sys.exit(1)
@@ -191,9 +186,8 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = frame_details
     data_index = config['usable_bits_in_frame'][1] * math.floor(
-        (frame_index - metadata_frames - config['pick_frame_to_read'][1]) /
-        frame_step) if frame_index == (num_frames - frame_step +
-                                       config['pick_frame_to_read'][1]) else None
+        (frame_index - metadata_frames - config['pick_frame_to_read'][1]) / frame_step) if frame_index == (num_frames - frame_step +
+                                                                                                           config['pick_frame_to_read'][1]) else None
 
     bit_buffer = ''
     output_data = []
@@ -204,8 +198,7 @@ def process_frame(frame_details):
 
     y = config['start_height']
     while y < config['start_height'] + usable_height:
-        for x in range(config['start_width'], config['start_width'] + usable_width,
-                       config['data_box_size_step'][1]):
+        for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][1]):
             if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
                 (data_index is not None and data_index >= total_binary_length):
                 break
@@ -222,9 +215,8 @@ def process_frame(frame_details):
             (data_index is not None and data_index >= total_binary_length):
             break
     if len(bit_buffer) != 0:
-        print("bit_buffer is not empty, currently it holds: ", bit_buffer, ", bits_used_in_frame: ",
-              bits_used_in_frame, ", config['usable_bits_in_frame'][1]: ",
-              config['usable_bits_in_frame'][1])
+        print("bit_buffer is not empty, currently it holds: ", bit_buffer, ", bits_used_in_frame: ", bits_used_in_frame,
+              ", config['usable_bits_in_frame'][1]: ", config['usable_bits_in_frame'][1])
         sys.exit(1)
     return frame_index, output_data
 
@@ -255,8 +247,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     frame_start = metadata_frames + config['pick_frame_to_read'][1]
     frame_step = config['total_frames_repetition'][1]
 
-    pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step),
-                desc="Processing Frames")
+    pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step), desc="Processing Frames")
 
     stream_encoded_file = open(f"{file_metadata.name}_encoded_stream.txt", "r") if debug else None
     stream_decoded_file = open(f"{file_metadata.name}_decoded_stream.txt", "w") if debug else None
@@ -270,8 +261,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     available_filename = get_available_filename_to_decode(file_metadata.name)
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step,
-                           file_metadata.binary_length, num_frames, metadata_frames)
+        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames, metadata_frames)
                           for index in range(frame_start, num_frames, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
 
@@ -290,9 +280,7 @@ def process_images(video_path, encoding_map_path, debug=False):
                         stream_decoded_file and stream_decoded_file.write(data_binary_string)
                         expected_binary_string = stream_encoded_file.read(len(data_binary_string))
                         if data_binary_string != expected_binary_string:
-                            print(
-                                f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n"
-                            )
+                            print(f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n")
                             sys.exit(1)
 
                 write_queue.put(return_value)
@@ -312,9 +300,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     if sha1.hexdigest() == file_metadata.sha1:
         print("Files decoded successfully, SHA1 matched: " + available_filename)
     else:
-        print(
-            "Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " +
-            available_filename)
+        print("Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " + available_filename)
         if not debug:
             os.remove(available_filename)
 

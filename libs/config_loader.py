@@ -116,7 +116,6 @@ def load_config(filename):
         config_dict['usable_width'].append(usable_width)
         config_dict['usable_height'].append(usable_height)
         usable_bits_in_frame = (usable_width // box_size) * (usable_height // box_size)
-        usable_bits_in_frame = usable_bits_in_frame if config_dict[
-            'allow_byte_to_be_split_between_frames'] else ((usable_bits_in_frame // 8) * 8)
+        usable_bits_in_frame = usable_bits_in_frame if config_dict['allow_byte_to_be_split_between_frames'] else ((usable_bits_in_frame // 8) * 8)
         config_dict['usable_bits_in_frame'].append(usable_bits_in_frame)
     return config_dict
