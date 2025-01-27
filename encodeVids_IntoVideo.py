@@ -6,6 +6,7 @@ import cv2
 import heapq
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
+from libs.content_type import ContentType
 from libs.file_codec import file_to_encodeddata
 from libs.ffmpeg_process import create_ffmpeg_process, close_ffmpeg_process
 from libs.merge_ts_to_mp4_dynamic_chunk import merge_ts_to_mp4_dynamic_chunk
@@ -32,9 +33,10 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
 
 def encode_frame(args):
     frame, config, encoding_color_map, frame_data, frame_index, is_metadata = args
-    data_box_size_step = config['data_box_size_step'][0] if is_metadata else config['data_box_size_step'][1]
-    usable_width = config['usable_width'][0] if is_metadata else config['usable_width'][1]
-    usable_height = config['usable_height'][0] if is_metadata else config['usable_height'][1]
+    data_box_size_step = config['data_box_size_step'][ContentType.METADATA.value] if is_metadata else config['data_box_size_step'][
+        ContentType.DATACONTENT.value]
+    usable_width = config['usable_width'][ContentType.METADATA.value] if is_metadata else config['usable_width'][ContentType.DATACONTENT.value]
+    usable_height = config['usable_height'][ContentType.METADATA.value] if is_metadata else config['usable_height'][ContentType.DATACONTENT.value]
 
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
@@ -125,7 +127,8 @@ def process_video_frames(file_path, config):
                     print(f"Started FFmpeg process for {'metadata segment.' if should_toggle_metadata else f'content segment {segment_index:02d}.'}")
 
                 # Write the frame multiple times as specified in the config
-                total_frames_repetition = config['total_frames_repetition'][0] if is_metadata else config['total_frames_repetition'][1]
+                total_frames_repetition = config['total_frames_repetition'][
+                    ContentType.METADATA.value] if is_metadata else config['total_frames_repetition'][ContentType.DATACONTENT.value]
                 for _ in range(total_frames_repetition):
                     content_and_metadata_stream.stdin.write(frame_to_write)
                 content_and_metadata_stream.stdin.flush()
