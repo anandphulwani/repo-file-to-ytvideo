@@ -9,6 +9,7 @@ import hashlib
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager
 from libs.config_loader import load_config
+from libs.content_type import ContentType
 from libs.downloadFromYT import downloadFromYT
 from libs.determine_color_key import determine_color_key
 from libs.transmit_file import transmit_file
@@ -62,21 +63,21 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 
     metadata_length = None
 
-    frame_step = config['total_frames_repetition'][0]
+    frame_step = config['total_frames_repetition'][ContentType.METADATA.value]
 
-    usable_width = config['usable_width'][0]
-    usable_height = config['usable_height'][0]
+    usable_width = config['usable_width'][ContentType.METADATA.value]
+    usable_height = config['usable_height'][ContentType.METADATA.value]
 
     while True:
         if output_data != '':
             break
-        for frame_index in range(config['pick_frame_to_read'][0], num_frames, frame_step):
-            metadata_frames = frame_index - config['pick_frame_to_read'][0] + frame_step
+        for frame_index in range(config['pick_frame_to_read'][ContentType.METADATA.value], num_frames, frame_step):
+            metadata_frames = frame_index - config['pick_frame_to_read'][ContentType.METADATA.value] + frame_step
 
             frame = vid.get_data(frame_index)
             y = config['start_height']
             while y < config['start_height'] + usable_height:
-                for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][0]):
+                for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][ContentType.METADATA.value]):
                     # Look for the metadata length prefix
                     if metadata_length is None and len(output_data) > len(metadata_main_delimiter) and output_data.endswith(metadata_main_delimiter):
                         output_data = output_data.replace(metadata_main_delimiter, "")
@@ -96,7 +97,7 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
                     if metadata_length and metadata_bit_count >= metadata_length:
                         break  # Exit the inner loops once metadata is fully read
                 else:
-                    y += config['data_box_size_step'][0]
+                    y += config['data_box_size_step'][ContentType.METADATA.value]
                     continue  # Continue `while y` loop, Only reached if its inner loop was not forcefully broken
                 break  # Break out of `while y` loop
             else:
@@ -185,21 +186,21 @@ def get_file_metadata(vid, encoding_color_map, num_frames):
 
 def process_frame(frame_details):
     frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = frame_details
-    data_index = config['usable_bits_in_frame'][1] * math.floor(
-        (frame_index - metadata_frames - config['pick_frame_to_read'][1]) / frame_step) if frame_index == (num_frames - frame_step +
-                                                                                                           config['pick_frame_to_read'][1]) else None
+    data_index = config['usable_bits_in_frame'][ContentType.DATACONTENT.value] * math.floor(
+        (frame_index - metadata_frames - config['pick_frame_to_read'][ContentType.DATACONTENT.value]) / frame_step) if frame_index == (
+            num_frames - frame_step + config['pick_frame_to_read'][ContentType.DATACONTENT.value]) else None
 
     bit_buffer = ''
     output_data = []
     bits_used_in_frame = 0
 
-    usable_width = config['usable_width'][1]
-    usable_height = config['usable_height'][1]
+    usable_width = config['usable_width'][ContentType.DATACONTENT.value]
+    usable_height = config['usable_height'][ContentType.DATACONTENT.value]
 
     y = config['start_height']
     while y < config['start_height'] + usable_height:
-        for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][1]):
-            if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
+        for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][ContentType.DATACONTENT.value]):
+            if bits_used_in_frame >= config['usable_bits_in_frame'][ContentType.DATACONTENT.value] or \
                 (data_index is not None and data_index >= total_binary_length):
                 break
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
@@ -210,13 +211,14 @@ def process_frame(frame_details):
             if data_index is not None:
                 data_index += 1
             bits_used_in_frame += 1
-        y += config['data_box_size_step'][1]
-        if bits_used_in_frame >= config['usable_bits_in_frame'][1] or \
+        y += config['data_box_size_step'][ContentType.DATACONTENT.value]
+        if bits_used_in_frame >= config['usable_bits_in_frame'][ContentType.DATACONTENT.value] or \
             (data_index is not None and data_index >= total_binary_length):
             break
     if len(bit_buffer) != 0:
         print("bit_buffer is not empty, currently it holds: ", bit_buffer, ", bits_used_in_frame: ", bits_used_in_frame,
-              ", config['usable_bits_in_frame'][1]: ", config['usable_bits_in_frame'][1])
+              ", config['usable_bits_in_frame'][", ContentType.DATACONTENT.value, "]: ",
+              config['usable_bits_in_frame'][ContentType.DATACONTENT.value])
         sys.exit(1)
     return frame_index, output_data
 
@@ -244,8 +246,8 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, num_frames)
 
-    frame_start = metadata_frames + config['pick_frame_to_read'][1]
-    frame_step = config['total_frames_repetition'][1]
+    frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
+    frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
 
     pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step), desc="Processing Frames")
 
