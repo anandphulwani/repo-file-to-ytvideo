@@ -2,5 +2,6 @@ from enum import Enum
 
 
 class ContentType(Enum):
-    METADATA = 0
-    DATACONTENT = 1
+    PREMETADATA = 0
+    METADATA = 1
+    DATACONTENT = 2
