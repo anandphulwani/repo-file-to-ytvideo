@@ -22,21 +22,20 @@ def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
             break
 
         try:
-            is_metadata, frame_data = next(frame_data_iter)
+            content_type, frame_data = next(frame_data_iter)
             if frame_data is None:
                 break
-            yield (frame, config, encoding_color_map, frame_data, frame_index, is_metadata)
+            yield (frame, config, encoding_color_map, frame_data, frame_index, content_type)
             frame_index += 1
         except StopIteration:
             break
 
 
 def encode_frame(args):
-    frame, config, encoding_color_map, frame_data, frame_index, is_metadata = args
-    data_box_size_step = config['data_box_size_step'][ContentType.METADATA.value] if is_metadata else config['data_box_size_step'][
-        ContentType.DATACONTENT.value]
-    usable_width = config['usable_width'][ContentType.METADATA.value] if is_metadata else config['usable_width'][ContentType.DATACONTENT.value]
-    usable_height = config['usable_height'][ContentType.METADATA.value] if is_metadata else config['usable_height'][ContentType.DATACONTENT.value]
+    frame, config, encoding_color_map, frame_data, frame_index, content_type = args
+    data_box_size_step = config['data_box_size_step'][content_type.value]
+    usable_width = config['usable_width'][content_type.value]
+    usable_height = config['usable_height'][content_type.value]
 
     if frame_data is None:
         print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
@@ -63,7 +62,7 @@ def encode_frame(args):
             bits_used_in_frame += 1
         if bits_used_in_frame >= len(frame_data):
             break
-    return (frame_index, frame, is_metadata)
+    return (frame_index, frame, content_type)
 
 
 def check_video_file(config, cap):
@@ -109,11 +108,12 @@ def process_video_frames(file_path, config):
         for result in result_iterator:
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
-                _, frame_to_write, is_metadata = heapq.heappop(heap)
+                _, frame_to_write, content_type = heapq.heappop(heap)
 
                 # Determine if a new FFmpeg process needs to be started
-                should_toggle_metadata = is_metadata and not metadata_stream_toggle
-                should_start_new_segment = not is_metadata and (next_frame_to_write % config['frames_per_content_part_file'] == 0)
+                should_toggle_metadata = (content_type == ContentType.METADATA) and not metadata_stream_toggle
+                should_start_new_segment = (content_type == ContentType.DATACONTENT) and (next_frame_to_write % config['frames_per_content_part_file']
+                                                                                          == 0)
 
                 if should_toggle_metadata or should_start_new_segment:
                     if content_and_metadata_stream:
@@ -127,8 +127,7 @@ def process_video_frames(file_path, config):
                     print(f"Started FFmpeg process for {'metadata segment.' if should_toggle_metadata else f'content segment {segment_index:02d}.'}")
 
                 # Write the frame multiple times as specified in the config
-                total_frames_repetition = config['total_frames_repetition'][
-                    ContentType.METADATA.value] if is_metadata else config['total_frames_repetition'][ContentType.DATACONTENT.value]
+                total_frames_repetition = config['total_frames_repetition'][content_type.value]
                 for _ in range(total_frames_repetition):
                     content_and_metadata_stream.stdin.write(frame_to_write)
                 content_and_metadata_stream.stdin.flush()

@@ -3,6 +3,7 @@ import os
 import sys
 import hashlib
 from .detect_base_from_json import detect_base_from_json
+from .content_type import ContentType
 
 
 def file_to_encodeddata(config, file_path, debug=False):
@@ -37,13 +38,13 @@ def file_to_encodeddata(config, file_path, debug=False):
         with tqdm(total=file_size, desc="Processing File", unit="B", unit_scale=True) as pbar:
             while True:
                 # Determine how many bytes to read:
-                needed_bits = usable_bits_in_frame[1] - len(buffer)
+                needed_bits = usable_bits_in_frame[ContentType.DATACONTENT.value] - len(buffer)
                 bytes_to_read = needed_bits // 8
                 file_chunk = file.read(bytes_to_read)
 
                 if not file_chunk:
                     if buffer:
-                        yield (False, buffer)  # Yield any remaining data in the buffer at EOF
+                        yield (ContentType.DATACONTENT, buffer)  # Yield any remaining data in the buffer at EOF
                         total_binary_length += len(buffer)
                         stream_encoded_file and stream_encoded_file.write(buffer)
                     break
@@ -59,11 +60,11 @@ def file_to_encodeddata(config, file_path, debug=False):
                 buffer += chunk_bits
 
                 # Yield data in exactly `usable_bits_in_frame[1]` length chunks
-                while len(buffer) >= usable_bits_in_frame[1]:
-                    data_to_yield = buffer[:usable_bits_in_frame[1]]
-                    yield (False, data_to_yield)  # Regular file data
+                while len(buffer) >= usable_bits_in_frame[ContentType.DATACONTENT.value]:
+                    data_to_yield = buffer[:usable_bits_in_frame[ContentType.DATACONTENT.value]]
+                    yield (ContentType.DATACONTENT, data_to_yield)  # Regular file data
                     total_binary_length += len(data_to_yield)
-                    buffer = buffer[usable_bits_in_frame[1]:]  # Remove the yielded part from buffer
+                    buffer = buffer[usable_bits_in_frame[ContentType.DATACONTENT.value]:]  # Remove the yielded part from buffer
                     stream_encoded_file and stream_encoded_file.write(data_to_yield)
 
     stream_encoded_file and stream_encoded_file.close()
@@ -108,7 +109,7 @@ def file_to_encodeddata(config, file_path, debug=False):
     # -------------------------------------------------
     metadata_with_length_binary = "".join(format(ord(char), format_string) for char in metadata_with_length)
 
-    for i in range(0, len(metadata_with_length_binary), usable_bits_in_frame[0]):
+    for i in range(0, len(metadata_with_length_binary), usable_bits_in_frame[ContentType.METADATA.value]):
         print(f"Metadata chunk starting at bit: {i}")
-        metadata_chunk = metadata_with_length_binary[i:i + usable_bits_in_frame[0]]
-        yield (True, metadata_chunk)  # Metadata data
+        metadata_chunk = metadata_with_length_binary[i:i + usable_bits_in_frame[ContentType.METADATA.value]]
+        yield (ContentType.METADATA, metadata_chunk)  # Metadata data
