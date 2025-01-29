@@ -11,223 +11,13 @@ from multiprocessing import Pool, cpu_count, Manager
 from libs.config_loader import load_config
 from libs.content_type import ContentType
 from libs.downloadFromYT import downloadFromYT
-from libs.determine_color_key import determine_color_key
-from libs.transmit_file import transmit_file
+from libs.get_available_filename_to_decode import get_available_filename_to_decode
+from libs.count_frames import count_frames
+from libs.writer_process import writer_process
+from libs.process_frame import process_frame
+from libs.get_file_metadata import get_file_metadata
 
 config = load_config('config.ini')
-
-
-def get_available_filename_to_decode(filename):
-    data_folder_decoded = config['data_folder_decoded']
-    original_filepath = os.path.join(data_folder_decoded, filename)
-
-    if not os.path.exists(original_filepath):
-        return filename
-
-    decoded_filename = f"decoded_{filename}"
-    decoded_filepath = os.path.join(data_folder_decoded, decoded_filename)
-    if not os.path.exists(decoded_filepath):
-        return decoded_filename
-
-    count = 1
-    while True:
-        incremented_filename = f"decoded({count:02})_{filename}"
-        incremented_filepath = os.path.join(data_folder_decoded, incremented_filename)
-        if not os.path.exists(incremented_filepath):
-            return incremented_filename
-        count += 1
-
-
-def writer_process(write_queue, file_path):
-    with open(file_path, 'wb') as binary_output_file:
-        while True:
-            item = write_queue.get(True)  # This will block until an item is available
-            if item is None:  # Check for the termination signal
-                break
-            frame_index, data = item
-            try:
-                for byte_data in data:
-                    binary_output_file.write(byte_data)
-            except Exception as e:
-                print(f"Error writing data: {e} on frame_index: {frame_index}")
-                break  # Exit on error
-
-
-def get_file_metadata(vid, encoding_color_map, num_frames):
-    # Initialize variables
-    metadata_main_delimiter = '|::-::|'
-    metadata_sub_delimiter = '|:-:|'
-    bit_buffer = ''
-    output_data = ''
-    metadata_bit_count = 0
-
-    metadata_length = None
-
-    frame_step = config['total_frames_repetition'][ContentType.METADATA.value]
-
-    usable_width = config['usable_width'][ContentType.METADATA.value]
-    usable_height = config['usable_height'][ContentType.METADATA.value]
-
-    while True:
-        if output_data != '':
-            break
-        for frame_index in range(config['pick_frame_to_read'][ContentType.METADATA.value], num_frames, frame_step):
-            metadata_frames = frame_index - config['pick_frame_to_read'][ContentType.METADATA.value] + frame_step
-
-            frame = vid.get_data(frame_index)
-            y = config['start_height']
-            while y < config['start_height'] + usable_height:
-                for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][ContentType.METADATA.value]):
-                    # Look for the metadata length prefix
-                    if metadata_length is None and len(output_data) > len(metadata_main_delimiter) and output_data.endswith(metadata_main_delimiter):
-                        output_data = output_data.replace(metadata_main_delimiter, "")
-                        metadata_length = int(output_data)
-                        output_data = ''
-
-                    nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
-                    bit_buffer += nearest_color_key
-                    if metadata_length is not None:
-                        metadata_bit_count += 1
-                    if len(bit_buffer) == 8:
-                        decoded_char = int(bit_buffer, 2).to_bytes(1, byteorder='big')
-                        output_data += decoded_char.decode('utf-8', errors='ignore')
-                        bit_buffer = ''
-
-                    # Check if we've received enough data based on metadata_length
-                    if metadata_length and metadata_bit_count >= metadata_length:
-                        break  # Exit the inner loops once metadata is fully read
-                else:
-                    y += config['data_box_size_step'][ContentType.METADATA.value]
-                    continue  # Continue `while y` loop, Only reached if its inner loop was not forcefully broken
-                break  # Break out of `while y` loop
-            else:
-                continue  # Continue `for frame_index` loop, Only reached if its inner loop was not forcefully broken
-            break  # Break out of `for frame_index` loop
-        else:
-            break  # Break out of `while True` loop, Only reached if its inner loop was not forcefully broken
-        continue  # Continue `while True` loop
-
-    # After exiting the loop, process the final_metadata
-    if not output_data:
-        print("No metadata found.")
-        sys.exit(1)
-
-    # Since metadata was tripled, extract one instance
-    triplet_length = len(output_data) // 3
-    metadata_triplet = output_data[:triplet_length]
-
-    # Verify that all three copies are identical
-    if output_data[:triplet_length] != output_data[triplet_length:2*triplet_length] or \
-       output_data[:triplet_length] != output_data[2*triplet_length:]:
-        print("Metadata triplication verification failed.")
-        sys.exit(1)
-
-    metadata_with_checksum = metadata_triplet
-
-    # Extract checksum
-    checksum_prefix = '|CHECKSUM:'
-    checksum_start = metadata_with_checksum.find(checksum_prefix)
-    if checksum_start == -1:
-        print("Checksum not found in metadata.")
-        sys.exit(1)
-
-    checksum_end = metadata_with_checksum.find('|', checksum_start + len(checksum_prefix))
-    if checksum_end == -1:
-        print("Invalid checksum format.")
-        sys.exit(1)
-
-    checksum_value_str = metadata_with_checksum[checksum_start + len(checksum_prefix):checksum_end]
-    try:
-        checksum_value = int(checksum_value_str)
-    except ValueError:
-        print("Invalid checksum value.")
-        sys.exit(1)
-
-    # Extract the actual metadata without checksum
-    actual_metadata = metadata_with_checksum[:checksum_start]
-
-    # Verify checksum
-    calculated_checksum = sum(ord(c) for c in actual_metadata) % 256
-    if calculated_checksum != checksum_value:
-        print("Checksum verification failed.")
-        sys.exit(1)
-
-    # Split the actual_metadata into parts
-    # Expected format:
-    # |::-::|FILE METADATA|:-:|{file_basename}|:-:|{file_size}|:-:|{total_binary_length}|:-:|{sha1_hash}|::-::|
-    if actual_metadata.startswith(metadata_main_delimiter) and actual_metadata.endswith(metadata_main_delimiter):
-        actual_metadata = actual_metadata[len(metadata_main_delimiter):-len(metadata_main_delimiter)]
-    else:
-        print(f"Metadata delimiter ({metadata_main_delimiter}) mismatch.")
-        sys.exit(1)
-
-    parts = actual_metadata.split(metadata_sub_delimiter)
-
-    if len(parts) != 5:
-        print("The metadata does not split into the correct number of parts.")
-        sys.exit(1)
-
-    # Extract fields
-    # parts[0] should start with 'FILE METADATA'
-    if not parts[0].startswith('FILE METADATA'):
-        print("Metadata header mismatch.")
-        sys.exit(1)
-
-    file_basename = parts[1]
-    file_size = parts[2]
-    total_binary_length = parts[3]
-    sha1_hash = parts[4]
-
-    # Create the transmit_file_obj
-    transmit_file_obj = transmit_file(file_basename, file_size, total_binary_length, sha1_hash)
-
-    return metadata_frames, transmit_file_obj
-
-
-def process_frame(frame_details):
-    frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = frame_details
-    data_index = config['usable_bits_in_frame'][ContentType.DATACONTENT.value] * math.floor(
-        (frame_index - metadata_frames - config['pick_frame_to_read'][ContentType.DATACONTENT.value]) / frame_step) if frame_index == (
-            num_frames - frame_step + config['pick_frame_to_read'][ContentType.DATACONTENT.value]) else None
-
-    bit_buffer = ''
-    output_data = []
-    bits_used_in_frame = 0
-
-    usable_width = config['usable_width'][ContentType.DATACONTENT.value]
-    usable_height = config['usable_height'][ContentType.DATACONTENT.value]
-
-    y = config['start_height']
-    while y < config['start_height'] + usable_height:
-        for x in range(config['start_width'], config['start_width'] + usable_width, config['data_box_size_step'][ContentType.DATACONTENT.value]):
-            if bits_used_in_frame >= config['usable_bits_in_frame'][ContentType.DATACONTENT.value] or \
-                (data_index is not None and data_index >= total_binary_length):
-                break
-            nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
-            bit_buffer += nearest_color_key
-            if len(bit_buffer) == 8:
-                output_data.append(int(bit_buffer, 2).to_bytes(1, byteorder='big'))
-                bit_buffer = ''
-            if data_index is not None:
-                data_index += 1
-            bits_used_in_frame += 1
-        y += config['data_box_size_step'][ContentType.DATACONTENT.value]
-        if bits_used_in_frame >= config['usable_bits_in_frame'][ContentType.DATACONTENT.value] or \
-            (data_index is not None and data_index >= total_binary_length):
-            break
-    if len(bit_buffer) != 0:
-        print("bit_buffer is not empty, currently it holds: ", bit_buffer, ", bits_used_in_frame: ", bits_used_in_frame,
-              ", config['usable_bits_in_frame'][", ContentType.DATACONTENT.value, "]: ",
-              config['usable_bits_in_frame'][ContentType.DATACONTENT.value])
-        sys.exit(1)
-    return frame_index, output_data
-
-
-def count_frames(video_path):
-    video = cv2.VideoCapture(video_path)
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    video.release()
-    return frame_count
 
 
 def process_images(video_path, encoding_map_path, debug=False):
@@ -244,7 +34,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     write_queue = manager.Queue()
     heap = []
 
-    metadata_frames, file_metadata = get_file_metadata(vid, encoding_color_map, num_frames)
+    metadata_frames, file_metadata = get_file_metadata(config, vid, encoding_color_map, num_frames)
 
     frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
     frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
@@ -260,11 +50,11 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     # Create a multiprocessing pool to process the remaining frames except the first and last one
     writer_pool = Pool(1)
-    available_filename = get_available_filename_to_decode(file_metadata.name)
+    available_filename = get_available_filename_to_decode(config, file_metadata.name)
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames, metadata_frames)
-                          for index in range(frame_start, num_frames, frame_step))
+        frame_iterator = ((config, vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames,
+                           metadata_frames) for index in range(frame_start, num_frames, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
 
         for result in result_iterator:
