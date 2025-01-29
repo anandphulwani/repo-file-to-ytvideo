@@ -10,71 +10,12 @@ from libs.content_type import ContentType
 from libs.file_codec import file_to_encodeddata
 from libs.ffmpeg_process import create_ffmpeg_process, close_ffmpeg_process
 from libs.merge_ts_to_mp4_dynamic_chunk import merge_ts_to_mp4_dynamic_chunk
+from libs.generate_frame_args import generate_frame_args
+from libs.check_video_file import check_video_file
+from libs.encode_frame import encode_frame
+from libs.write_frame_repeatedly import write_frame_repeatedly
 
 config = load_config('config.ini')
-
-
-def generate_frame_args(cap, config, frame_data_iter, encoding_color_map):
-    frame_index = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        try:
-            content_type, frame_data = next(frame_data_iter)
-            if frame_data is None:
-                break
-            yield (frame, config, encoding_color_map, frame_data, frame_index, content_type)
-            frame_index += 1
-        except StopIteration:
-            break
-
-
-def encode_frame(args):
-    frame, config, encoding_color_map, frame_data, frame_index, content_type = args
-    data_box_size_step = config['data_box_size_step'][content_type.value]
-    usable_width = config['usable_width'][content_type.value]
-    usable_height = config['usable_height'][content_type.value]
-
-    if frame_data is None:
-        print(f'frame_index: {frame_index}, frame_data: `{frame_data}` does not have any data.')
-        sys.exit(1)
-
-    frame[0 + config['margin']:config['frame_height'] - config['margin'],
-          0 + config['margin']:config['frame_width'] - config['margin']] = (255, 255, 255)
-
-    bits_used_in_frame = 0
-    for y in range(config['start_height'], config['start_height'] + usable_height, data_box_size_step):
-        for x in range(config['start_width'], config['start_width'] + usable_width, data_box_size_step):
-            if bits_used_in_frame >= len(frame_data):
-                break
-            try:
-                char = frame_data[bits_used_in_frame]
-            except Exception as e:
-                print("Error:", e)
-                sys.exit(1)
-            if char in encoding_color_map:
-                color = tuple(int(encoding_color_map[char][i:i + 2], 16) for i in (1, 3, 5))[::-1]
-            else:
-                raise ValueError(f"Unknown character: {char} found in encoded data stream")
-            frame[y:y + data_box_size_step, x:x + data_box_size_step] = color
-            bits_used_in_frame += 1
-        if bits_used_in_frame >= len(frame_data):
-            break
-    return (frame_index, frame, content_type)
-
-
-def check_video_file(config, cap):
-    if not cap.isOpened():
-        raise IOError("Error opening video stream or file")
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    if config['frame_width'] != frame_width or config['frame_height'] != frame_height:
-        print(
-            f"Config's frame dimensions ({config['frame_width']}x{config['frame_height']}) do not match video dimensions ({frame_width}x{frame_height})."
-        )
-        sys.exit(1)
 
 
 def process_video_frames(file_path, config):
@@ -127,10 +68,7 @@ def process_video_frames(file_path, config):
                     print(f"Started FFmpeg process for {'metadata segment.' if should_toggle_metadata else f'content segment {segment_index:02d}.'}")
 
                 # Write the frame multiple times as specified in the config
-                total_frames_repetition = config['total_frames_repetition'][content_type.value]
-                for _ in range(total_frames_repetition):
-                    content_and_metadata_stream.stdin.write(frame_to_write)
-                content_and_metadata_stream.stdin.flush()
+                write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
                 next_frame_to_write += 1
                 if len(heap) % 10 == 0:
                     gc.collect()
