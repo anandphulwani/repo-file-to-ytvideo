@@ -1,8 +1,11 @@
 import sys
+import cv2
+import datetime
+from os import path
 
 
 def encode_frame(args):
-    frame, config, encoding_color_map, frame_data, frame_index, content_type = args
+    frame, config, encoding_color_map, frame_data, frame_index, content_type, debug = args
     data_box_size_step = config['data_box_size_step'][content_type.value]
     usable_width = config['usable_width'][content_type.value]
     usable_height = config['usable_height'][content_type.value]
@@ -32,4 +35,7 @@ def encode_frame(args):
             bits_used_in_frame += 1
         if bits_used_in_frame >= len(frame_data):
             break
+
+    # Save the frame
+    cv2.imwrite(path.join("storage", "output", f"frame_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png"), frame) if debug else None
     return (frame_index, frame, content_type)

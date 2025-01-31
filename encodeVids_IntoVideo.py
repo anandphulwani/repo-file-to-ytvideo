@@ -18,7 +18,7 @@ from libs.write_frame_repeatedly import write_frame_repeatedly
 config = load_config('config.ini')
 
 
-def process_video_frames(file_path, config):
+def process_video_frames(file_path, config, debug):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
 
@@ -44,7 +44,7 @@ def process_video_frames(file_path, config):
     heap = []
 
     with Pool(cpu_count()) as pool:
-        result_iterator = pool.imap_unordered(encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map))
+        result_iterator = pool.imap_unordered(encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug))
 
         for result in result_iterator:
             heapq.heappush(heap, result)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     output_dir = path.basename(file_path) + config['output_video_suffix']
     output_dir = path.join("storage", "output", output_dir)
 
-    process_video_frames(file_path, config)
+    process_video_frames(file_path, config, debug=False)
     merge_ts_to_mp4_dynamic_chunk(output_dir, path.join("storage", "output", "Test03.iso.mp4"), path.join("storage", "output"))
 
     # process_video_frames(path.join("storage", "gparted.iso"), config)
