@@ -7,7 +7,7 @@ import heapq
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
 from libs.content_type import ContentType
-from libs.file_codec import file_to_encodeddata
+from libs.FileToEncodedData import FileToEncodedData
 from libs.ffmpeg_process import create_ffmpeg_process, close_ffmpeg_process
 from libs.merge_ts_to_mp4_dynamic_chunk import merge_ts_to_mp4_dynamic_chunk
 from libs.generate_frame_args import generate_frame_args
@@ -22,7 +22,7 @@ def process_video_frames(file_path, config, debug):
     with open(config['encoding_map_path'], 'r') as file:
         encoding_color_map = json.load(file)
 
-    frame_data_iter = iter(file_to_encodeddata(config, file_path))
+    frame_data_iter = FileToEncodedData(config, file_path, debug)
     print('Encoding done.')
 
     cap = cv2.VideoCapture(config['bgr_video_path'])
@@ -38,7 +38,6 @@ def process_video_frames(file_path, config, debug):
     segment_index = 0
 
     content_and_metadata_stream = None
-    metadata_stream_toggle = False
 
     next_frame_to_write = 0
     heap = []
@@ -50,22 +49,14 @@ def process_video_frames(file_path, config, debug):
             heapq.heappush(heap, result)
             while heap and heap[0][0] == next_frame_to_write:
                 _, frame_to_write, content_type = heapq.heappop(heap)
-
-                # Determine if a new FFmpeg process needs to be started
-                should_toggle_metadata = (content_type == ContentType.METADATA) and not metadata_stream_toggle
-                should_start_new_segment = (content_type == ContentType.DATACONTENT) and (next_frame_to_write % config['frames_per_content_part_file']
-                                                                                          == 0)
-
-                if should_toggle_metadata or should_start_new_segment:
-                    if content_and_metadata_stream:
-                        close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}")
+                should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
+                if should_start_new_segment:
+                    close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}") if content_and_metadata_stream else None
 
                     # Determine parameters for create_ffmpeg_process
                     segment_index = segment_index + 1 if should_start_new_segment else segment_index
-                    metadata_stream_toggle = True if should_toggle_metadata else metadata_stream_toggle
-                    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, None if should_toggle_metadata else segment_index,
-                                                                        should_toggle_metadata)
-                    print(f"Started FFmpeg process for {'metadata segment.' if should_toggle_metadata else f'content segment {segment_index:02d}.'}")
+                    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, False)
+                    print(f"Started FFmpeg process for content segment {segment_index:02d}.")
 
                 # Write the frame multiple times as specified in the config
                 write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
@@ -73,6 +64,17 @@ def process_video_frames(file_path, config, debug):
                 if len(heap) % 10 == 0:
                     gc.collect()
         gc.collect()
+
+    close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}") if content_and_metadata_stream else None
+    # Start a new FFmpeg process
+    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, True)
+    print(f"Started FFmpeg process for metadata segment.")
+
+    for next_frame_to_write, frame_to_write, content_type in (
+            encode_frame(frame_args) for frame_args in generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug)):
+        # Write the frame multiple times as specified in the config
+        write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
+    gc.collect()
 
     # Release everything if the job is finished
     cap.release()
