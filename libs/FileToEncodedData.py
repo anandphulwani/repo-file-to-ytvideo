@@ -66,7 +66,7 @@ class FileToEncodedData:
             raise StopIteration
 
         # Update progress and metadata
-        self.pbar.update(len(file_chunk))
+        self.pbar.update(len(file_chunk * 8 if self.metadata is not None else file_chunk))
         self.sha1.update(file_chunk)
         self.total_binary_length += len(file_chunk) * 8  # Assuming 8 bits per byte
 
