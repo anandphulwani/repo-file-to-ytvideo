@@ -105,7 +105,7 @@ def get_file_metadata(config, vid, encoding_color_map, num_frames):
 
     # Split the actual_metadata into parts
     # Expected format:
-    # |::-::|FILE METADATA|:-:|{file_basename}|:-:|{file_size}|:-:|{total_binary_length}|:-:|{sha1_hash}|::-::|
+    # |::-::|METADATA|:-:|{file_basename}|:-:|{file_size}|:-:|{total_binary_length}|:-:|{sha1_hash}|::-::|
     if actual_metadata.startswith(metadata_main_delimiter) and actual_metadata.endswith(metadata_main_delimiter):
         actual_metadata = actual_metadata[len(metadata_main_delimiter):-len(metadata_main_delimiter)]
     else:
@@ -119,8 +119,8 @@ def get_file_metadata(config, vid, encoding_color_map, num_frames):
         sys.exit(1)
 
     # Extract fields
-    # parts[0] should start with 'FILE METADATA'
-    if not parts[0].startswith('FILE METADATA'):
+    # parts[0] should start with 'METADATA'
+    if not parts[0].startswith('METADATA'):
         print("Metadata header mismatch.")
         sys.exit(1)
 
