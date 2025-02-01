@@ -29,12 +29,17 @@ class FileToEncodedData:
         self.file = open(file_path, "rb")
         self.pbar = tqdm(total=self.file_size, desc="Processing File", unit="B", unit_scale=True)
         self.buffer = ''
+        self.pre_metadata = None
         self.metadata = None
         self.current_metadata_key = None
+        self.metadata_rscodec_value = None
+        self.metadata_item_frame_count = None
         self.metadata_read_position = 0
 
     def create_metadata(self):
         self.buffer = ''
+        self.pre_metadata = ''
+        self.metadata_item_frame_count = 0
         # Prepare for metadata iternation
         self.metadata = self.get_metadata()
         self.metadata_keys = iter(self.metadata.keys())  # Create an iterator over metadata items
@@ -51,8 +56,14 @@ class FileToEncodedData:
 
         # If metadata iteration is complete, move to the next encoding type
         if self.content_type == ContentType.METADATA and self.metadata_read_position >= len(self.metadata[self.current_metadata_key]):
+            self.pre_metadata += f"|:-:|{self.current_metadata_key}" + f"|:-:|{self.metadata_item_frame_count}" + (
+                f"|:-:|{self.metadata_rscodec_value}"
+                if self.current_metadata_key == "reed_solomon" else "") + f"|:-:|{len(self.metadata[self.current_metadata_key])}"
+
+            self.metadata_item_frame_count = 0
             self.current_metadata_key = next(self.metadata_keys, None)
             if self.current_metadata_key is None:
+                self.pre_metadata = '|::-::|PREMETADATA' + self.pre_metadata + '|::-::|'
                 raise StopIteration
 
             # Reset metadata read position and buffer for the new metadata type
@@ -104,6 +115,7 @@ class FileToEncodedData:
             self.buffer = ''
 
         self.stream_encoded_file.write(data_to_yield) if self.stream_encoded_file and self.content_type == ContentType.DATACONTENT else None
+        self.metadata_item_frame_count = self.metadata_item_frame_count + 1 if self.metadata is not None else 0
         return (self.content_type, data_to_yield)
 
     def get_metadata(self):
@@ -152,8 +164,8 @@ class FileToEncodedData:
         # -------------------------------------------------
         # STEP 6: Convert to Reed-Solomon error correction
         # -------------------------------------------------
-        rscodec_value = 255 if len(metadata_with_checksum) > 255 else len(metadata_with_checksum) - 1
-        reed_solomon_encoded = RSCodec(rscodec_value).encode(metadata_with_checksum.encode()).decode(errors='ignore')
+        self.metadata_rscodec_value = 255 if len(metadata_with_checksum) > 255 else len(metadata_with_checksum) - 1
+        reed_solomon_encoded = RSCodec(self.metadata_rscodec_value).encode(metadata_with_checksum.encode()).decode(errors='ignore')
         metadata_items["reed_solomon"] = reed_solomon_encoded
 
         # -----------------------------
