@@ -90,7 +90,7 @@ class FileToEncodedData:
         # ------------------------------------------
         # STEP 1: Build the metadata WITHOUT length
         # ------------------------------------------
-        temp_metadata = (f"|::-::|FILE METADATA"
+        temp_metadata = (f"|::-::|METADATA"
                          f"|:-:|{os.path.basename(self.file_path)}"
                          f"|:-:|{self.file_size}"
                          f"|:-:|{self.total_binary_length}"
