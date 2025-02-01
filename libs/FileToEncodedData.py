@@ -30,13 +30,17 @@ class FileToEncodedData:
         self.pbar = tqdm(total=self.file_size, desc="Processing File", unit="B", unit_scale=True)
         self.buffer = ''
         self.metadata = None
+        self.current_metadata_key = None
         self.metadata_read_position = 0
 
     def create_metadata(self):
         self.buffer = ''
         # Prepare for metadata iternation
         self.metadata = self.get_metadata()
-        self.pbar = tqdm(total=len(self.metadata), desc="Processing File", unit="B", unit_scale=True)
+        self.metadata_keys = iter(self.metadata.keys())  # Create an iterator over metadata items
+        self.current_metadata_key = next(self.metadata_keys, None)
+        self.metadata_read_position = 0
+        self.pbar = tqdm(total=len(self.metadata[self.current_metadata_key]), desc="Processing Metadata", unit="B", unit_scale=True)
 
     def __iter__(self):
         return self
@@ -45,16 +49,32 @@ class FileToEncodedData:
         if self.content_type == ContentType.METADATA and self.metadata is None:
             self.create_metadata()
 
+        # If metadata iteration is complete, move to the next encoding type
+        if self.content_type == ContentType.METADATA and self.metadata_read_position >= len(self.metadata[self.current_metadata_key]):
+            self.current_metadata_key = next(self.metadata_keys, None)
+            if self.current_metadata_key is None:
+                raise StopIteration
+
+            # Reset metadata read position and buffer for the new metadata type
+            self.metadata_read_position = 0
+            self.buffer = ''
+            self.pbar = tqdm(total=len(self.metadata[self.current_metadata_key]),
+                             desc=f"Processing {self.current_metadata_key}",
+                             unit="B",
+                             unit_scale=True)
+
         # Determine how many bytes to read
         needed_bits = self.usable_bits_in_frame[self.content_type.value] - len(self.buffer)
         bytes_to_read = needed_bits // 8
         file_chunk = ''
+
         if self.metadata is not None:
             # Convert binary string to bytes
+            metadata_str = self.metadata[self.current_metadata_key]
             file_chunk = bytes(
-                int(self.metadata[i:i + 8], 2)
-                for i in range(self.metadata_read_position, min(self.metadata_read_position + bytes_to_read * 8, len(self.metadata)), 8))
-            self.metadata_read_position += bytes_to_read * 8  # Move by bits
+                int(metadata_str[i:i + 8], 2)
+                for i in range(self.metadata_read_position, min(self.metadata_read_position + bytes_to_read * 8, len(metadata_str)), 8))
+            self.metadata_read_position += bytes_to_read * 8
         else:
             file_chunk = self.file.read(bytes_to_read)
 
