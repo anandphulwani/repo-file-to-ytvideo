@@ -59,7 +59,7 @@ class FileToEncodedData:
             file_chunk = self.file.read(bytes_to_read)
 
         if not file_chunk:
-            self.file.close()
+            self.file.close() if self.content_type == ContentType.DATACONTENT else None
             self.pbar.close()
             self.stream_encoded_file.close() if self.stream_encoded_file else None
             self.content_type = ContentType.METADATA if self.content_type == ContentType.DATACONTENT else None
