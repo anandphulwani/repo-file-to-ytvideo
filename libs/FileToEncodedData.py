@@ -1,9 +1,13 @@
+import base64
 from tqdm import tqdm
 import os
 import sys
 import hashlib
+import zfec
 from .detect_base_from_json import detect_base_from_json
 from .content_type import ContentType
+from .rot13_rot5 import rot13_rot5
+from reedsolo import RSCodec
 
 
 class FileToEncodedData:
@@ -87,6 +91,8 @@ class FileToEncodedData:
         Returns the metadata.
         """
         format_string = detect_base_from_json(self.config)[1]
+
+        metadata_items = {}
         # ------------------------------------------
         # STEP 1: Build the metadata WITHOUT length
         # ------------------------------------------
@@ -109,22 +115,43 @@ class FileToEncodedData:
         # --------------------------------------------
         # Repeat metadata_with_checksum 3 times
         final_metadata = metadata_with_checksum * 3
+        metadata_items["normal"] = final_metadata
 
-        # --------------------------------------------------------
-        # STEP 4: Convert final_metadata to binary to get its length
-        # --------------------------------------------------------
-        final_metadata_binary = "".join(format(ord(char), format_string) for char in final_metadata)
-        metadata_length_in_bits = len(final_metadata_binary)
+        # -----------------------------------------
+        # STEP 4: Apply Base64 encoding
+        # -----------------------------------------
+        base64_encoded = base64.b64encode(metadata_with_checksum.encode()).decode()
+        metadata_items["base64"] = base64_encoded
 
-        # --------------------------------------------------------
-        # STEP 5: Prepend that length to the metadata
-        # --------------------------------------------------------
-        metadata_with_length = (f"|::-::|{metadata_length_in_bits}|::-::|"
-                                f"{final_metadata}")
+        # -----------------------------------------
+        # STEP 5: Apply ROT13 cipher
+        # -----------------------------------------
+        rot13_encoded = rot13_rot5(metadata_with_checksum)
+        metadata_items["rot13"] = rot13_encoded
 
         # -------------------------------------------------
-        # STEP 6: Convert metadata_with_length to binary & yield
+        # STEP 6: Convert to Reed-Solomon error correction
         # -------------------------------------------------
-        metadata_with_length_binary = "".join(format(ord(char), self.format_string) for char in metadata_with_length)
-        # return metadata_with_length
-        return metadata_with_length_binary
+        rscodec_value = 255 if len(metadata_with_checksum) > 255 else len(metadata_with_checksum) - 1
+        reed_solomon_encoded = RSCodec(rscodec_value).encode(metadata_with_checksum.encode()).decode(errors='ignore')
+        metadata_items["reed_solomon"] = reed_solomon_encoded
+
+        # -----------------------------
+        # STEP 7: Apply Erasure Coding
+        # -----------------------------
+        zfec_k, zfec_m = 3, 5
+        zfec_encoder = zfec.Encoder(zfec_k, zfec_m)
+        block_size = -(-len(metadata_with_checksum.encode()) // zfec_k)  # Ceiling division
+        blocks = [metadata_with_checksum.encode()[i * block_size:(i + 1) * block_size].ljust(block_size, b' ') for i in range(zfec_k)]
+        zfec_encoded_text = zfec_encoder.encode(blocks)
+        zfec_encoded_hex = "".join(fragment.hex() for fragment in zfec_encoded_text)
+        metadata_items["zfec"] = zfec_encoded_hex
+
+        # -----------------------------------------
+        # STEP 8: Convert all metadata to binary
+        # -----------------------------------------
+        binary_metadata_items = {}
+        for key, value in metadata_items.items():
+            binary_metadata_items[key] = "".join(format(ord(char), format_string) for char in value)
+
+        return binary_metadata_items
