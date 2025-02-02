@@ -68,10 +68,12 @@ def merge_ts_to_mp4_dynamic_chunk(
 
         def sort_key(x):
             filename = os.path.basename(x)
-            if 'metadata.ts' in filename:
+            if 'pre_metadata.ts' in filename:
                 return (0, '')
-            elif 'delimiter.ts' in filename:
+            if 'metadata.ts' in filename:
                 return (1, '')
+            elif 'delimiter.ts' in filename:
+                return (2, '')
             else:
                 # Extract the numeric part from content_partXX.ts
                 digits = ''.join(filter(str.isdigit, filename))
