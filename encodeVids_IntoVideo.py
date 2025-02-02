@@ -51,11 +51,12 @@ def process_video_frames(file_path, config, debug):
                 _, frame_to_write, content_type = heapq.heappop(heap)
                 should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
                 if should_start_new_segment:
-                    close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}") if content_and_metadata_stream else None
+                    close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
+                                         f"{segment_index:02d}") if content_and_metadata_stream else None
 
                     # Determine parameters for create_ffmpeg_process
                     segment_index = segment_index + 1 if should_start_new_segment else segment_index
-                    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, False)
+                    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.DATACONTENT)
                     print(f"Started FFmpeg process for content segment {segment_index:02d}.")
 
                 # Write the frame multiple times as specified in the config
@@ -65,9 +66,9 @@ def process_video_frames(file_path, config, debug):
                     gc.collect()
         gc.collect()
 
-    close_ffmpeg_process(content_and_metadata_stream, f"{segment_index:02d}") if content_and_metadata_stream else None
+    close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT, f"{segment_index:02d}") if content_and_metadata_stream else None
     # Start a new FFmpeg process
-    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, True)
+    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.METADATA)
     print(f"Started FFmpeg process for metadata segment.")
 
     for next_frame_to_write, frame_to_write, content_type in (
@@ -78,7 +79,7 @@ def process_video_frames(file_path, config, debug):
 
     # Release everything if the job is finished
     cap.release()
-    close_ffmpeg_process(content_and_metadata_stream, "Metadata")
+    close_ffmpeg_process(content_and_metadata_stream, ContentType.METADATA, None)
     print("Modification is done.")
 
 
