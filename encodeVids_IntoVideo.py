@@ -78,8 +78,21 @@ def process_video_frames(file_path, config, debug):
     gc.collect()
 
     # Release everything if the job is finished
-    cap.release()
     close_ffmpeg_process(content_and_metadata_stream, ContentType.METADATA, None)
+
+    # Start a new FFmpeg process
+    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.PREMETADATA)
+    print(f"Started FFmpeg process for pre_metadata segment.")
+
+    for next_frame_to_write, frame_to_write, content_type in (
+            encode_frame(frame_args) for frame_args in generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug)):
+        # Write the frame multiple times as specified in the config
+        write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
+    gc.collect()
+
+    # Release everything if the job is finished
+    cap.release()
+    close_ffmpeg_process(content_and_metadata_stream, ContentType.PREMETADATA, None)
     print("Modification is done.")
 
 

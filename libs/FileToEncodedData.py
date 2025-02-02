@@ -34,17 +34,24 @@ class FileToEncodedData:
         self.current_metadata_key = None
         self.metadata_rscodec_value = None
         self.metadata_item_frame_count = None
-        self.metadata_read_position = 0
+        self.metadata_or_pre_metadata_read_position = None
+        self.metadata_frames_and_details = {}
+
+    def create_pre_metadata(self):
+        self.buffer = ''
+        self.pre_metadata = self.get_pre_metadata()
+        self.metadata_or_pre_metadata_read_position = 0
+        self.pbar = tqdm(total=len(self.pre_metadata), desc="Processing Pre Metadata", unit="B", unit_scale=True)
 
     def create_metadata(self):
         self.buffer = ''
-        self.pre_metadata = ''
+        self.metadata_or_pre_metadata_read_position = 0
         self.metadata_item_frame_count = 0
         # Prepare for metadata iternation
         self.metadata = self.get_metadata()
         self.metadata_keys = iter(self.metadata.keys())  # Create an iterator over metadata items
         self.current_metadata_key = next(self.metadata_keys, None)
-        self.metadata_read_position = 0
+        self.metadata_or_pre_metadata_read_position = 0
         self.pbar = tqdm(total=len(self.metadata[self.current_metadata_key]), desc="Processing Metadata", unit="B", unit_scale=True)
 
     def __iter__(self):
@@ -52,44 +59,49 @@ class FileToEncodedData:
 
     def __next__(self):
         # If metadata iteration is complete, move to the next encoding type
-        if self.content_type == ContentType.METADATA and self.metadata_read_position >= len(self.metadata[self.current_metadata_key]):
-            self.pre_metadata += f"|:-:|{self.current_metadata_key}" + f"|:-:|{self.metadata_item_frame_count}" + (
-                f"|:-:|{self.metadata_rscodec_value}"
-                if self.current_metadata_key == "reed_solomon" else "") + f"|:-:|{len(self.metadata[self.current_metadata_key])}"
+        if self.content_type == ContentType.METADATA and self.metadata_or_pre_metadata_read_position >= len(self.metadata[self.current_metadata_key]):
+            self.metadata_frames_and_details[self.current_metadata_key] = [
+                self.metadata_item_frame_count,
+                len(self.metadata[self.current_metadata_key]),
+                self.metadata_rscodec_value if self.current_metadata_key == "reed_solomon" else None,
+            ]
 
             self.metadata_item_frame_count = 0
             self.current_metadata_key = next(self.metadata_keys, None)
-            if self.current_metadata_key is None:
-                self.pre_metadata = '|::-::|PREMETADATA' + self.pre_metadata + '|::-::|'
-                raise StopIteration
-
-            # Reset metadata read position and buffer for the new metadata type
-            self.metadata_read_position = 0
-            self.buffer = ''
-            self.pbar = tqdm(total=len(self.metadata[self.current_metadata_key]),
-                             desc=f"Processing {self.current_metadata_key}",
-                             unit="B",
-                             unit_scale=True)
+            if self.current_metadata_key is not None:
+                # Reset metadata read position and buffer for the new metadata type
+                self.metadata_or_pre_metadata_read_position = 0
+                self.buffer = ''
+                self.pbar = tqdm(total=len(self.metadata[self.current_metadata_key]),
+                                 desc=f"Processing {self.current_metadata_key}",
+                                 unit="B",
+                                 unit_scale=True)
 
         # Determine how many bytes to read
         needed_bits = self.usable_bits_in_frame[self.content_type.value] - len(self.buffer)
         bytes_to_read = needed_bits // 8
         file_chunk = ''
 
-        if self.content_type == ContentType.METADATA:
+        if self.content_type == ContentType.PREMETADATA or self.content_type == ContentType.METADATA:
             # Convert binary string to bytes
-            metadata_str = self.metadata[self.current_metadata_key]
-            file_chunk = bytes(
-                int(metadata_str[i:i + 8], 2)
-                for i in range(self.metadata_read_position, min(self.metadata_read_position + bytes_to_read * 8, len(metadata_str)), 8))
-            self.metadata_read_position += bytes_to_read * 8
+            if self.content_type == ContentType.PREMETADATA or self.current_metadata_key is not None:
+                metadata_or_premetadata_str = self.metadata[
+                    self.current_metadata_key] if self.content_type == ContentType.METADATA else self.pre_metadata
+                file_chunk = bytes(
+                    int(metadata_or_premetadata_str[i:i + 8], 2)
+                    for i in range(self.metadata_or_pre_metadata_read_position,
+                                   min(self.metadata_or_pre_metadata_read_position + bytes_to_read * 8, len(metadata_or_premetadata_str)), 8))
+                self.metadata_or_pre_metadata_read_position += bytes_to_read * 8
         else:
             file_chunk = self.file.read(bytes_to_read)
 
         if not file_chunk:
             self.pbar.close()
-            if self.content_type == ContentType.METADATA:
+            if self.content_type == ContentType.PREMETADATA:
                 self.content_type = None
+            if self.content_type == ContentType.METADATA:
+                self.create_pre_metadata()
+                self.content_type = ContentType.PREMETADATA
             elif self.content_type == ContentType.DATACONTENT:
                 self.stream_encoded_file.close() if self.stream_encoded_file else None
                 self.file.close()
@@ -98,7 +110,8 @@ class FileToEncodedData:
             raise StopIteration
 
         # Update progress and metadata
-        self.pbar.update(len(file_chunk * 8 if self.content_type == ContentType.METADATA else file_chunk))
+        self.pbar.update(
+            len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
         self.sha1.update(file_chunk)
         self.total_binary_length += len(file_chunk) * 8  # Assuming 8 bits per byte
 
@@ -188,3 +201,21 @@ class FileToEncodedData:
             binary_metadata_items[key] = "".join(format(ord(char), format_string) for char in value)
 
         return binary_metadata_items
+
+    def get_pre_metadata(self):
+        """
+        Returns the pre_metadata.
+        """
+        format_string = detect_base_from_json(self.config)[1]
+
+        pre_metadata = ''
+        for key, value in self.metadata_frames_and_details.items():
+            pre_metadata += f"|:-:|{key}" + f"|:-:|{value[0]}" + (f"|:-:|{value[2]}" if key == "reed_solomon" else "") + f"|:-:|{value[1]}"
+
+        pre_metadata = '|::-::|PREMETADATA' + pre_metadata + '|::-::|'
+        pre_metadata_binary = "".join(format(ord(char), format_string) for char in pre_metadata)
+        pre_metadata_binary_length = len(pre_metadata_binary)
+        pre_metadata_with_length = (f"|::-::|{pre_metadata_binary_length}|::-::|"
+                                    f"{pre_metadata}")
+        pre_metadata_with_length_binary = "".join(format(ord(char), format_string) for char in pre_metadata_with_length)
+        return pre_metadata_with_length_binary
