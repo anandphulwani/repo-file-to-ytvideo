@@ -51,9 +51,6 @@ class FileToEncodedData:
         return self
 
     def __next__(self):
-        if self.content_type == ContentType.METADATA and self.metadata is None:
-            self.create_metadata()
-
         # If metadata iteration is complete, move to the next encoding type
         if self.content_type == ContentType.METADATA and self.metadata_read_position >= len(self.metadata[self.current_metadata_key]):
             self.pre_metadata += f"|:-:|{self.current_metadata_key}" + f"|:-:|{self.metadata_item_frame_count}" + (
@@ -79,7 +76,7 @@ class FileToEncodedData:
         bytes_to_read = needed_bits // 8
         file_chunk = ''
 
-        if self.metadata is not None:
+        if self.content_type == ContentType.METADATA:
             # Convert binary string to bytes
             metadata_str = self.metadata[self.current_metadata_key]
             file_chunk = bytes(
@@ -90,14 +87,18 @@ class FileToEncodedData:
             file_chunk = self.file.read(bytes_to_read)
 
         if not file_chunk:
-            self.file.close() if self.content_type == ContentType.DATACONTENT else None
             self.pbar.close()
-            self.stream_encoded_file.close() if self.stream_encoded_file else None
-            self.content_type = ContentType.METADATA if self.content_type == ContentType.DATACONTENT else None
+            if self.content_type == ContentType.METADATA:
+                self.content_type = None
+            elif self.content_type == ContentType.DATACONTENT:
+                self.stream_encoded_file.close() if self.stream_encoded_file else None
+                self.file.close()
+                self.create_metadata()
+                self.content_type = ContentType.METADATA
             raise StopIteration
 
         # Update progress and metadata
-        self.pbar.update(len(file_chunk * 8 if self.metadata is not None else file_chunk))
+        self.pbar.update(len(file_chunk * 8 if self.content_type == ContentType.METADATA else file_chunk))
         self.sha1.update(file_chunk)
         self.total_binary_length += len(file_chunk) * 8  # Assuming 8 bits per byte
 
@@ -115,7 +116,7 @@ class FileToEncodedData:
             self.buffer = ''
 
         self.stream_encoded_file.write(data_to_yield) if self.stream_encoded_file and self.content_type == ContentType.DATACONTENT else None
-        self.metadata_item_frame_count = self.metadata_item_frame_count + 1 if self.metadata is not None else 0
+        self.metadata_item_frame_count = self.metadata_item_frame_count + 1 if self.content_type == ContentType.METADATA else 0
         return (self.content_type, data_to_yield)
 
     def get_metadata(self):
