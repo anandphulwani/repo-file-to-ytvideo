@@ -41,8 +41,8 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step), desc="Processing Frames")
 
-    stream_encoded_file = open(f"{file_metadata.name}_encoded_stream.txt", "r") if debug else None
-    stream_decoded_file = open(f"{file_metadata.name}_decoded_stream.txt", "w") if debug else None
+    stream_encoded_file = open(f"{file_metadata.metadata['filename']}_encoded_stream.txt", "r") if debug else None
+    stream_decoded_file = open(f"{file_metadata.metadata['filename']}_decoded_stream.txt", "w") if debug else None
 
     next_frame_to_write = frame_start
 
@@ -50,11 +50,11 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     # Create a multiprocessing pool to process the remaining frames except the first and last one
     writer_pool = Pool(1)
-    available_filename = get_available_filename_to_decode(config, file_metadata.name)
+    available_filename = get_available_filename_to_decode(config, file_metadata.metadata["filename"])
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((config, vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.binary_length, num_frames,
-                           metadata_frames) for index in range(frame_start, num_frames, frame_step))
+        frame_iterator = ((config, vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.metadata["total_binary_length"],
+                           num_frames, metadata_frames) for index in range(frame_start, num_frames, frame_step))
         result_iterator = pool.imap_unordered(process_frame, frame_iterator)
 
         for result in result_iterator:
@@ -89,7 +89,7 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     stream_encoded_file and stream_encoded_file.close()
 
-    if sha1.hexdigest() == file_metadata.sha1:
+    if sha1.hexdigest() == file_metadata.metadata["sha1_checksum"]:
         print("Files decoded successfully, SHA1 matched: " + available_filename)
     else:
         print("Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " + available_filename)
