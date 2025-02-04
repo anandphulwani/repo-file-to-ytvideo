@@ -178,7 +178,7 @@ class FileToEncodedData:
         # -------------------------------------------------
         # STEP 6: Convert to Reed-Solomon error correction
         # -------------------------------------------------
-        self.metadata_rscodec_value = 255 if len(metadata_with_checksum) > 255 else len(metadata_with_checksum) - 1
+        self.metadata_rscodec_value = min(len(metadata_with_checksum), 255)
         reed_solomon_encoded = RSCodec(self.metadata_rscodec_value).encode(metadata_with_checksum.encode()).decode(errors='ignore')
         metadata_items["reed_solomon"] = reed_solomon_encoded
 
