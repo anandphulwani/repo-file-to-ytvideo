@@ -198,7 +198,7 @@ class FileToEncodedData:
         # -----------------------------------------
         binary_metadata_items = {}
         for key, value in metadata_items.items():
-            binary_metadata_items[key] = "".join(format(ord(char), format_string) for char in value)
+            binary_metadata_items[key] = "".join(format(char if isinstance(value, bytearray) else ord(char), format_string) for char in value)
 
         return binary_metadata_items
 
