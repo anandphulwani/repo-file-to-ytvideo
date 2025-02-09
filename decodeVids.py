@@ -9,15 +9,22 @@ import hashlib
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager
 from libs.config_loader import load_config
+from libs.check_video_file import check_video_file
+from libs.generate_frame_args import generate_frame_args
 from libs.content_type import ContentType
 from libs.downloadFromYT import downloadFromYT
 from libs.get_available_filename_to_decode import get_available_filename_to_decode
 from libs.count_frames import count_frames
 from libs.writer_process import writer_process
-from libs.process_frame import process_frame
+from libs.process_frame_optimized import process_frame_optimized
 from libs.get_file_metadata import get_file_metadata
 
 config = load_config('config.ini')
+
+
+def frame_data_iter(start_index, end_index, frame_step):
+    for i in range(start_index, end_index + 1, frame_step):
+        yield (ContentType.DATACONTENT, i)
 
 
 def process_images(video_path, encoding_map_path, debug=False):
@@ -48,14 +55,54 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     heap = []  # Process results as they become available
 
+    # 2) Prepare parameters
+    frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
+    frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
+    end_index = num_frames - 1
+    total_binary_length = file_metadata.metadata["total_binary_length"]
+    bits_per_frame = config["usable_bits_in_frame"][ContentType.DATACONTENT.value]
+
+    config_params = {
+        "start_height": config["start_height"],
+        "start_width": config["start_width"],
+        "box_step": config["data_box_size_step"][ContentType.DATACONTENT.value],
+        "usable_w": config["usable_width"][ContentType.DATACONTENT.value],
+        "usable_h": config["usable_height"][ContentType.DATACONTENT.value],
+        "bits_per_frame": config["usable_bits_in_frame"][ContentType.DATACONTENT.value]
+    }
+
+    cap = cv2.VideoCapture(video_path)
+    check_video_file(config, cap)
+
+    # A small generator that tells which frames we want to decode (and which we skip).
+    frame_iter = frame_data_iter(start_index=frame_start, end_index=end_index, frame_step=frame_step)
+
+    # Step B: Setup for DATACONTENT reading (the largest portion)
     # Create a multiprocessing pool to process the remaining frames except the first and last one
     writer_pool = Pool(1)
     available_filename = get_available_filename_to_decode(config, file_metadata.metadata["filename"])
     writer_pool.apply_async(writer_process, (write_queue, available_filename))
     with Pool(cpu_count()) as pool:
-        frame_iterator = ((config, vid.get_data(index), encoding_color_map, index, frame_step, file_metadata.metadata["total_binary_length"],
-                           num_frames, metadata_frames) for index in range(frame_start, num_frames, frame_step))
-        result_iterator = pool.imap_unordered(process_frame, frame_iterator)
+        result_iterator = pool.imap_unordered(
+            process_frame_optimized,
+            (
+                (
+                    config_params,
+                    frame,  # BGR frame
+                    encoding_color_map,
+                    frame_index,
+                    frame_step,
+                    total_binary_length,
+                    num_frames,
+                    metadata_frames)
+                for (frame, config, encoding_color_map, local_frame_index, frame_index, content_type, debug) in generate_frame_args(
+                    cap=cap,
+                    config=config,  # or config_params—depends on your code
+                    frame_data_iter=frame_iter,
+                    encoding_color_map=None,  # if you need it, or pass a real map
+                    debug=debug,
+                    start_index=frame_start,
+                    frame_step=frame_step)))
 
         for result in result_iterator:
             heapq.heappush(heap, result)
