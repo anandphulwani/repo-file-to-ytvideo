@@ -60,7 +60,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
     end_index = num_frames - 1
     total_baseN_length = file_metadata.metadata["total_baseN_length"]
-    bits_per_frame = config["usable_bits_in_frame"][ContentType.DATACONTENT.value]
+    databoxes_per_frame = config["usable_databoxes_in_frame"][ContentType.DATACONTENT.value]
 
     config_params = {
         "start_height": config["start_height"],
@@ -68,7 +68,7 @@ def process_images(video_path, encoding_map_path, debug=False):
         "box_step": config["data_box_size_step"][ContentType.DATACONTENT.value],
         "usable_w": config["usable_width"][ContentType.DATACONTENT.value],
         "usable_h": config["usable_height"][ContentType.DATACONTENT.value],
-        "bits_per_frame": config["usable_bits_in_frame"][ContentType.DATACONTENT.value]
+        "databoxes_per_frame": config["usable_databoxes_in_frame"][ContentType.DATACONTENT.value]
     }
 
     cap = cv2.VideoCapture(video_path)
