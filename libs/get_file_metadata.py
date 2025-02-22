@@ -31,7 +31,7 @@ def read_frames_and_get_data_in_format(vid,
         return byte_data, total_frames_consumed
 
 
-def process_frame(frame, config, content_type, encoding_color_map, data_expected_length, data_current_length, output_data, bit_buffer):
+def process_frame(frame, config, content_type, encoding_color_map, data_expected_length, data_current_length, output_data, baseN_data_buffer):
     main_delim = config['premetadata_metadata_main_delimiter']
     usable_width = config['usable_width'][content_type.value]
     usable_height = config['usable_height'][content_type.value]
@@ -49,19 +49,19 @@ def process_frame(frame, config, content_type, encoding_color_map, data_expected
                     output_data = ''
 
             nearest_color_key = determine_color_key(frame, x, y, encoding_color_map)
-            bit_buffer += nearest_color_key
+            baseN_data_buffer += nearest_color_key
 
             if data_expected_length is not None:
                 data_current_length += 1
 
-            if len(bit_buffer) == 8:
+            if len(baseN_data_buffer) == 8:
                 if data_expected_length is None:
-                    decoded_char = int(bit_buffer, 2).to_bytes(1, byteorder='big')
+                    decoded_char = int(baseN_data_buffer, 2).to_bytes(1, byteorder='big')
                     # Decode and ignore errors if any
                     output_data += decoded_char.decode('utf-8', errors='ignore')
                 else:
-                    output_data += bit_buffer
-                bit_buffer = ''
+                    output_data += baseN_data_buffer
+                baseN_data_buffer = ''
 
             # Check if we've received enough data based on data_expected_length
             if data_expected_length and data_current_length >= data_expected_length:
@@ -73,11 +73,11 @@ def process_frame(frame, config, content_type, encoding_color_map, data_expected
             continue  # Continue the while-loop with the updated y
         break  # Break out of the while-loop if the for-loop was broken
 
-    return data_expected_length, data_current_length, output_data, bit_buffer
+    return data_expected_length, data_current_length, output_data, baseN_data_buffer
 
 
 def read_frames(vid, config, content_type, encoding_color_map, start_frame_index, num_frames, data_expected_length=None):
-    bit_buffer = ''
+    baseN_data_buffer = ''
     output_data = ''
     data_current_length = 0
 
@@ -86,9 +86,9 @@ def read_frames(vid, config, content_type, encoding_color_map, start_frame_index
     # Iterate over frames, starting at the designated frame index.
     for frame_index in range(start_frame_index + config['pick_frame_to_read'][content_type.value], num_frames, frame_step):
         frame = vid.get_data(frame_index)
-        (data_expected_length, data_current_length, output_data, bit_buffer) = process_frame(frame, config, content_type, encoding_color_map,
-                                                                                             data_expected_length, data_current_length, output_data,
-                                                                                             bit_buffer)
+        (data_expected_length, data_current_length, output_data, baseN_data_buffer) = process_frame(frame, config, content_type, encoding_color_map,
+                                                                                                    data_expected_length, data_current_length,
+                                                                                                    output_data, baseN_data_buffer)
 
         total_frames_consumed = frame_index - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
         # Break out of the loop once the full metadata has been read.
