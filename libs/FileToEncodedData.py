@@ -87,11 +87,12 @@ class FileToEncodedData:
             if self.content_type == ContentType.PREMETADATA or self.current_metadata_key is not None:
                 metadata_or_premetadata_str = self.metadata[
                     self.current_metadata_key] if self.content_type == ContentType.METADATA else self.pre_metadata
-                file_chunk = bytes(
-                    int(metadata_or_premetadata_str[i:i + 8], 2)
-                    for i in range(self.metadata_or_pre_metadata_read_position,
-                                   min(self.metadata_or_pre_metadata_read_position + bytes_to_read * 8, len(metadata_or_premetadata_str)), 8))
-                self.metadata_or_pre_metadata_read_position += bytes_to_read * 8
+
+                start_pos = self.metadata_or_pre_metadata_read_position
+                end_pos = min(start_pos + bytes_to_read, len(metadata_or_premetadata_str))
+
+                file_chunk = metadata_or_premetadata_str[start_pos:end_pos].encode('utf-8')
+                self.metadata_or_pre_metadata_read_position += (end_pos - start_pos)
         else:
             file_chunk = self.file.read(bytes_to_read)
 
