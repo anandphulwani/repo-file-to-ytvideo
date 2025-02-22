@@ -193,14 +193,7 @@ class FileToEncodedData:
         zfec_encoded_hex = "".join(fragment.hex() for fragment in zfec_encoded_text)
         metadata_items["zfec"] = zfec_encoded_hex
 
-        # -----------------------------------------
-        # STEP 8: Convert all metadata to binary
-        # -----------------------------------------
-        binary_metadata_items = {}
-        for key, value in metadata_items.items():
-            binary_metadata_items[key] = "".join(format(char if isinstance(value, bytearray) else ord(char), self.format_string) for char in value)
-
-        return binary_metadata_items
+        return metadata_items
 
     def get_pre_metadata(self):
         """
@@ -210,14 +203,19 @@ class FileToEncodedData:
         pre_metadata = ''
         main_delim = self.config["premetadata_metadata_main_delimiter"]
         sub_delim = self.config["premetadata_metadata_sub_delimiter"]
+        length_of_digits_to_represent_size = self.config["length_of_digits_to_represent_size"]
 
         for key, value in self.metadata_frames_and_details.items():
             pre_metadata += f"{sub_delim}{key}" + f"{sub_delim}{value[0]}" + (f"{sub_delim}{value[2]}"
                                                                               if key == "reed_solomon" else "") + f"{sub_delim}{value[1]}"
 
         pre_metadata = main_delim + 'PREMETADATA' + pre_metadata + main_delim
-        pre_metadata_binary = "".join(format(ord(char), self.format_string) for char in pre_metadata)
-        pre_metadata_binary_length = len(pre_metadata_binary)
-        pre_metadata_with_length = (f"{main_delim}{pre_metadata_binary_length}{main_delim}{pre_metadata}")
-        pre_metadata_with_length_binary = "".join(format(ord(char), self.format_string) for char in pre_metadata_with_length)
-        return pre_metadata_with_length_binary
+        pre_metadata_len = len(main_delim) + length_of_digits_to_represent_size + len(main_delim) + len(pre_metadata)
+        if len(str(pre_metadata_len)) > length_of_digits_to_represent_size:
+            raise ValueError(
+                f"Pre-metadata length ({len(str(pre_metadata_len))}) exceeds the maximum allowed size ({self.config['length_of_digits_to_represent_size']})"
+            )
+
+        pre_metadata_with_length = main_delim + str(pre_metadata_len).zfill(length_of_digits_to_represent_size) + main_delim + pre_metadata
+
+        return pre_metadata_with_length
