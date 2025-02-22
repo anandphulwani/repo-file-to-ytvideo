@@ -21,7 +21,7 @@ class FileToEncodedData:
         self.file_path = file_path
         self.debug = debug
         self.sha1 = hashlib.sha1()
-        self.total_binary_length = 0
+        self.total_baseN_length = 0
         self.format_string = detect_base_from_json(config)[1]
         self.usable_bits_in_frame = config['usable_bits_in_frame']
         self.stream_encoded_file = open(f"{file_path}_encoded_stream.txt", "w") if debug else None
@@ -113,7 +113,7 @@ class FileToEncodedData:
         self.pbar.update(
             len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
         self.sha1.update(file_chunk)
-        self.total_binary_length += len(file_chunk) * 8  # Assuming 8 bits per byte
+        self.total_baseN_length += len(file_chunk) * 8  # Assuming 8 bits per byte
 
         # Convert file bytes to a binary string
         chunk_bits = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
@@ -145,7 +145,7 @@ class FileToEncodedData:
         temp_metadata = (f"|::-::|METADATA"
                          f"|:-:|{os.path.basename(self.file_path)}"
                          f"|:-:|{self.file_size}"
-                         f"|:-:|{self.total_binary_length}"
+                         f"|:-:|{self.total_baseN_length}"
                          f"|:-:|{self.sha1.hexdigest()}"
                          f"|::-::|")
 
