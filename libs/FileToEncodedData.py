@@ -4,7 +4,6 @@ import os
 import sys
 import hashlib
 import zfec
-from .detect_base_from_json import detect_base_from_json
 from .content_type import ContentType
 from .rot13_rot5 import rot13_rot5
 from reedsolo import RSCodec
@@ -22,7 +21,7 @@ class FileToEncodedData:
         self.debug = debug
         self.sha1 = hashlib.sha1()
         self.total_baseN_length = 0
-        self.format_string = detect_base_from_json(config)[1]
+        self.format_string = config["encoding_format_string"]
         self.usable_databoxes_in_frame = config['usable_databoxes_in_frame']
         self.stream_encoded_file = open(f"{file_path}_encoded_stream.txt", "w") if debug else None
         self.file_size = os.path.getsize(file_path)
@@ -136,7 +135,6 @@ class FileToEncodedData:
         """
         Returns the metadata.
         """
-        format_string = detect_base_from_json(self.config)[1]
 
         metadata_items = {}
         # ------------------------------------------
@@ -198,7 +196,7 @@ class FileToEncodedData:
         # -----------------------------------------
         binary_metadata_items = {}
         for key, value in metadata_items.items():
-            binary_metadata_items[key] = "".join(format(char if isinstance(value, bytearray) else ord(char), format_string) for char in value)
+            binary_metadata_items[key] = "".join(format(char if isinstance(value, bytearray) else ord(char), self.format_string) for char in value)
 
         return binary_metadata_items
 
@@ -206,16 +204,15 @@ class FileToEncodedData:
         """
         Returns the pre_metadata.
         """
-        format_string = detect_base_from_json(self.config)[1]
 
         pre_metadata = ''
         for key, value in self.metadata_frames_and_details.items():
             pre_metadata += f"|:-:|{key}" + f"|:-:|{value[0]}" + (f"|:-:|{value[2]}" if key == "reed_solomon" else "") + f"|:-:|{value[1]}"
 
         pre_metadata = '|::-::|PREMETADATA' + pre_metadata + '|::-::|'
-        pre_metadata_binary = "".join(format(ord(char), format_string) for char in pre_metadata)
+        pre_metadata_binary = "".join(format(ord(char), self.format_string) for char in pre_metadata)
         pre_metadata_binary_length = len(pre_metadata_binary)
         pre_metadata_with_length = (f"|::-::|{pre_metadata_binary_length}|::-::|"
                                     f"{pre_metadata}")
-        pre_metadata_with_length_binary = "".join(format(ord(char), format_string) for char in pre_metadata_with_length)
+        pre_metadata_with_length_binary = "".join(format(ord(char), self.format_string) for char in pre_metadata_with_length)
         return pre_metadata_with_length_binary
