@@ -135,17 +135,19 @@ class FileToEncodedData:
         """
         Returns the metadata.
         """
+        main_delim = self.config["premetadata_metadata_main_delimiter"]
+        sub_delim = self.config["premetadata_metadata_sub_delimiter"]
 
         metadata_items = {}
         # ------------------------------------------
         # STEP 1: Build the metadata WITHOUT length
         # ------------------------------------------
-        temp_metadata = (f"|::-::|METADATA"
-                         f"|:-:|{os.path.basename(self.file_path)}"
-                         f"|:-:|{self.file_size}"
-                         f"|:-:|{self.total_baseN_length}"
-                         f"|:-:|{self.sha1.hexdigest()}"
-                         f"|::-::|")
+        temp_metadata = (f"{main_delim}METADATA"
+                         f"{sub_delim}{os.path.basename(self.file_path)}"
+                         f"{sub_delim}{self.file_size}"
+                         f"{sub_delim}{self.total_baseN_length}"
+                         f"{sub_delim}{self.sha1.hexdigest()}"
+                         f"{main_delim}")
 
         # ------------------------------------------------
         # STEP 2: Simple checksum (e.g. sum of ASCII % 256)
@@ -206,13 +208,16 @@ class FileToEncodedData:
         """
 
         pre_metadata = ''
-        for key, value in self.metadata_frames_and_details.items():
-            pre_metadata += f"|:-:|{key}" + f"|:-:|{value[0]}" + (f"|:-:|{value[2]}" if key == "reed_solomon" else "") + f"|:-:|{value[1]}"
+        main_delim = self.config["premetadata_metadata_main_delimiter"]
+        sub_delim = self.config["premetadata_metadata_sub_delimiter"]
 
-        pre_metadata = '|::-::|PREMETADATA' + pre_metadata + '|::-::|'
+        for key, value in self.metadata_frames_and_details.items():
+            pre_metadata += f"{sub_delim}{key}" + f"{sub_delim}{value[0]}" + (f"{sub_delim}{value[2]}"
+                                                                              if key == "reed_solomon" else "") + f"{sub_delim}{value[1]}"
+
+        pre_metadata = main_delim + 'PREMETADATA' + pre_metadata + main_delim
         pre_metadata_binary = "".join(format(ord(char), self.format_string) for char in pre_metadata)
         pre_metadata_binary_length = len(pre_metadata_binary)
-        pre_metadata_with_length = (f"|::-::|{pre_metadata_binary_length}|::-::|"
-                                    f"{pre_metadata}")
+        pre_metadata_with_length = (f"{main_delim}{pre_metadata_binary_length}{main_delim}{pre_metadata}")
         pre_metadata_with_length_binary = "".join(format(ord(char), self.format_string) for char in pre_metadata_with_length)
         return pre_metadata_with_length_binary
