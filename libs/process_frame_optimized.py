@@ -12,31 +12,31 @@ WHITE_THRESHOLD = 200
 
 
 ####################################################
-# 2) NUMBA-ACCELERATED BIT EXTRACTION
+# 2) NUMBA-ACCELERATED BASE-N DATA EXTRACTION
 ####################################################
 @numba.njit
-def extract_bits_numba(start_height, start_width, box_step, usable_w, usable_h, bits_per_frame, frame: np.ndarray, frame_index: int,
-                       total_baseN_length: int, data_index_start: int, is_last_frame: bool):
+def extract_baseN_data_numba(start_height, start_width, box_step, usable_w, usable_h, databoxes_per_frame, frame: np.ndarray, frame_index: int,
+                             total_baseN_length: int, data_index_start: int, is_last_frame: bool):
     """
-    Extract bits from `frame` (BGR, shape=(H,W,3)) according to 
+    Extract baseN data from `frame` (BGR, shape=(H,W,3)) according to 
     your black/white fallback logic, scanning from (start_width, start_height)
     to (start_width+usable_w, start_height+usable_h) in steps of box_step.
 
-    - bits_per_frame = maximum bits per frame to extract
-    - If is_last_frame==True, we stop after total_baseN_length bits
+    - databoxes_per_frame = maximum baseN data per frame to extract
+    - If is_last_frame==True, we stop after total_baseN_length baseN data
       (so we don't over-extract).
     """
     output_bytes = []
-    bit_buffer = np.empty(8, dtype=np.uint8)  # hold up to 8 bits before we flush to a byte
+    baseN_data_buffer = np.empty(8, dtype=np.uint8)  # hold up to 8 bits before we flush to a byte
     buffer_fill = 0
 
-    bits_used = 0
+    databoxes_used = 0
     data_index = data_index_start
 
     # We'll read BGR from frame[y, x] => (b, g, r).
     for y in range(start_height, start_height + usable_h, box_step):
         for x in range(start_width, start_width + usable_w, box_step):
-            if bits_used >= bits_per_frame:
+            if databoxes_used >= databoxes_per_frame:
                 break
             if is_last_frame and data_index >= total_baseN_length:
                 break
@@ -47,39 +47,39 @@ def extract_bits_numba(start_height, start_width, box_step, usable_w, usable_h, 
 
             # Quick black/white detection:
             if b <= BLACK_THRESHOLD and g <= BLACK_THRESHOLD and r <= BLACK_THRESHOLD:
-                bit_val = 0
+                baseN_data_val = 0
             elif b >= WHITE_THRESHOLD and g >= WHITE_THRESHOLD and r >= WHITE_THRESHOLD:
-                bit_val = 1
+                baseN_data_val = 1
             else:
                 # Fallback logic if you want more advanced average color,
                 # or looking at neighboring pixels, etc.
                 # For demonstration, we do a naive approach: treat anything else as 0
                 # or replicate your `determine_color_key(...)`.
-                bit_val = 0
+                baseN_data_val = 0
 
-            bit_buffer[buffer_fill] = bit_val
+            baseN_data_buffer[buffer_fill] = baseN_data_val
             buffer_fill += 1
 
             if buffer_fill == 8:
                 # Convert the 8 bits to one byte
                 byte_val = 0
                 for i in range(8):
-                    byte_val = (byte_val << 1) | bit_buffer[i]
+                    byte_val = (byte_val << 1) | baseN_data_buffer[i]
                 output_bytes.append(byte_val)
                 buffer_fill = 0
 
             if is_last_frame:
                 data_index += 1
-            bits_used += 1
+            databoxes_used += 1
 
-        if bits_used >= bits_per_frame:
+        if databoxes_used >= databoxes_per_frame:
             break
         if is_last_frame and data_index >= total_baseN_length:
             break
 
-    # If not fully empty, that means the frame ended with partial bits
+    # If not fully empty, that means the frame ended with partial baseN data
     if buffer_fill != 0:
-        raise ValueError("bit_buffer not empty at end of frame. (Numba)")
+        raise ValueError("baseN_data_buffer not empty at end of frame. (Numba)")
 
     return output_bytes
 
@@ -99,27 +99,27 @@ def process_frame_optimized(args):
     box_step = config_params["box_step"]
     usable_w = config_params["usable_w"]
     usable_h = config_params["usable_h"]
-    bits_per_frame = config_params["bits_per_frame"]
+    databoxes_per_frame = config_params["databoxes_per_frame"]
 
     frames_so_far = (frame_index - metadata_frames) // frame_step
-    data_index_start = frames_so_far * bits_per_frame
+    data_index_start = frames_so_far * databoxes_per_frame
     is_last_frame = (frame_index >= (num_frames - frame_step + 1))
 
     # Ensure dtype=uint8
     if frame_bgr.dtype != np.uint8:
         frame_bgr = frame_bgr.astype(np.uint8)
 
-    out_ints = extract_bits_numba(start_height,
-                                  start_width,
-                                  box_step,
-                                  usable_w,
-                                  usable_h,
-                                  bits_per_frame,
-                                  frame=frame_bgr,
-                                  frame_index=frame_index,
-                                  total_baseN_length=total_baseN_length,
-                                  data_index_start=data_index_start,
-                                  is_last_frame=is_last_frame)
+    out_ints = extract_baseN_data_numba(start_height,
+                                        start_width,
+                                        box_step,
+                                        usable_w,
+                                        usable_h,
+                                        databoxes_per_frame,
+                                        frame=frame_bgr,
+                                        frame_index=frame_index,
+                                        total_baseN_length=total_baseN_length,
+                                        data_index_start=data_index_start,
+                                        is_last_frame=is_last_frame)
     # Convert each int to a single-byte object for writing
     output_data = [val.to_bytes(1, byteorder='big') for val in out_ints]
     return (frame_index, output_data)

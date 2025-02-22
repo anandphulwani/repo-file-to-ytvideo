@@ -17,13 +17,13 @@ def encode_frame(args):
     frame[0 + config['margin']:config['frame_height'] - config['margin'],
           0 + config['margin']:config['frame_width'] - config['margin']] = (255, 255, 255)
 
-    bits_used_in_frame = 0
+    databoxes_used_in_frame = 0
     for y in range(config['start_height'], config['start_height'] + usable_height, data_box_size_step):
         for x in range(config['start_width'], config['start_width'] + usable_width, data_box_size_step):
-            if bits_used_in_frame >= len(frame_data):
+            if databoxes_used_in_frame >= len(frame_data):
                 break
             try:
-                char = frame_data[bits_used_in_frame]
+                char = frame_data[databoxes_used_in_frame]
             except Exception as e:
                 print("Error:", e)
                 sys.exit(1)
@@ -32,8 +32,8 @@ def encode_frame(args):
             else:
                 raise ValueError(f"Unknown character: {char} found in encoded data stream")
             frame[y:y + data_box_size_step, x:x + data_box_size_step] = color
-            bits_used_in_frame += 1
-        if bits_used_in_frame >= len(frame_data):
+            databoxes_used_in_frame += 1
+        if databoxes_used_in_frame >= len(frame_data):
             break
 
     # Save the frame
