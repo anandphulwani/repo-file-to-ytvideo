@@ -133,4 +133,54 @@ def load_config(filename):
 
         config_dict["encoding_base"], config_dict["encoding_format_string"], config_dict["encoding_chunk_size"], config_dict[
             "encoding_function"], config_dict["decoding_function"] = detect_base_from_json(config_dict['encoding_color_map'])
+
+        color_bounds = {}
+        color_rgb = {}
+
+        # Read "color_threshold_percent" from config.ini (like 5 => 0.05)
+        color_threshold = math.ceil(config_dict.get("color_threshold_percent") / 100.0 * 255)
+
+        for key, hex_color in config_dict['encoding_color_map'].items():
+            # Convert HEX (#RRGGBB) to BGR
+            r = int(hex_color[1:3], 16)
+            g = int(hex_color[3:5], 16)
+            b = int(hex_color[5:7], 16)
+
+            color_rgb[key] = (r, g, b)
+
+            # Compute the range using threshold
+            r_range = (max(0, r - color_threshold), min(255, r + color_threshold))
+            g_range = (max(0, g - color_threshold), min(255, g + color_threshold))
+            b_range = (max(0, b - color_threshold), min(255, b + color_threshold))
+
+            color_bounds[key] = (r_range, g_range, b_range)
+
+        color_keys = list(color_bounds.keys())
+        for i in range(len(color_keys)):
+            for j in range(i + 1, len(color_keys)):
+                key1, key2 = color_keys[i], color_keys[j]
+                (r1_low, r1_high), (g1_low, g1_high), (b1_low, b1_high) = color_bounds[key1]
+                (r2_low, r2_high), (g2_low, g2_high), (b2_low, b2_high) = color_bounds[key2]
+
+                # Check if ranges have potential overlapping values
+                r_overlap = (r1_low <= r2_high) and (r2_low <= r1_high)
+                g_overlap = (g1_low <= g2_high) and (g2_low <= g1_high)
+                b_overlap = (b1_low <= b2_high) and (b2_low <= b1_high)
+
+                # If there's a valid color that fits in both ranges but not in all three channels
+                if (r_overlap and g_overlap and b_overlap):
+                    raise ValueError(f"Conflict detected between colors {key1} and {key2}")
+
+        encoding_color_map_keys = np.array(list(color_bounds.keys()))
+        encoding_color_map_keys = np.array([ord(k) for k in encoding_color_map_keys], dtype=np.uint8)
+        encoding_color_map_values = np.array(list(color_rgb.values()))  # , dtype=np.uint8)
+        encoding_color_map_values_lower_bounds = np.array([[c[0][0], c[1][0], c[2][0]] for c in color_bounds.values()], dtype=np.uint8)
+        encoding_color_map_values_upper_bounds = np.array([[c[0][1], c[1][1], c[2][1]] for c in color_bounds.values()], dtype=np.uint8)
+
+        # Put them back in config_dict
+        config_dict["encoding_color_map_keys"] = encoding_color_map_keys
+        config_dict["encoding_color_map_values"] = encoding_color_map_values
+        config_dict["encoding_color_map_values_lower_bounds"] = encoding_color_map_values_lower_bounds
+        config_dict["encoding_color_map_values_upper_bounds"] = encoding_color_map_values_upper_bounds
+
     return config_dict
