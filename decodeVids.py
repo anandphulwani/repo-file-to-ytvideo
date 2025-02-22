@@ -59,7 +59,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
     frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
     end_index = num_frames - 1
-    total_binary_length = file_metadata.metadata["total_binary_length"]
+    total_baseN_length = file_metadata.metadata["total_baseN_length"]
     bits_per_frame = config["usable_bits_in_frame"][ContentType.DATACONTENT.value]
 
     config_params = {
@@ -92,7 +92,7 @@ def process_images(video_path, encoding_map_path, debug=False):
                     encoding_color_map,
                     frame_index,
                     frame_step,
-                    total_binary_length,
+                    total_baseN_length,
                     num_frames,
                     metadata_frames)
                 for (frame, config, encoding_color_map, local_frame_index, frame_index, content_type, debug) in generate_frame_args(

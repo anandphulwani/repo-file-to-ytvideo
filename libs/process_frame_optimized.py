@@ -16,14 +16,14 @@ WHITE_THRESHOLD = 200
 ####################################################
 @numba.njit
 def extract_bits_numba(start_height, start_width, box_step, usable_w, usable_h, bits_per_frame, frame: np.ndarray, frame_index: int,
-                       total_binary_length: int, data_index_start: int, is_last_frame: bool):
+                       total_baseN_length: int, data_index_start: int, is_last_frame: bool):
     """
     Extract bits from `frame` (BGR, shape=(H,W,3)) according to 
     your black/white fallback logic, scanning from (start_width, start_height)
     to (start_width+usable_w, start_height+usable_h) in steps of box_step.
 
     - bits_per_frame = maximum bits per frame to extract
-    - If is_last_frame==True, we stop after total_binary_length bits
+    - If is_last_frame==True, we stop after total_baseN_length bits
       (so we don't over-extract).
     """
     output_bytes = []
@@ -38,7 +38,7 @@ def extract_bits_numba(start_height, start_width, box_step, usable_w, usable_h, 
         for x in range(start_width, start_width + usable_w, box_step):
             if bits_used >= bits_per_frame:
                 break
-            if is_last_frame and data_index >= total_binary_length:
+            if is_last_frame and data_index >= total_baseN_length:
                 break
 
             b = frame[y, x, 0]
@@ -74,7 +74,7 @@ def extract_bits_numba(start_height, start_width, box_step, usable_w, usable_h, 
 
         if bits_used >= bits_per_frame:
             break
-        if is_last_frame and data_index >= total_binary_length:
+        if is_last_frame and data_index >= total_baseN_length:
             break
 
     # If not fully empty, that means the frame ended with partial bits
@@ -90,9 +90,9 @@ def process_frame_optimized(args):
     1) runs Numba-based extraction, 
     2) returns (frame_index, list_of_1-byte chunks).
     """
-    # (frame_index, frame_bgr, total_binary_length, data_index_start, is_last_frame) = args
-    # config, frame, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = args
-    config_params, frame_bgr, encoding_color_map, frame_index, frame_step, total_binary_length, num_frames, metadata_frames = args
+    # (frame_index, frame_bgr, total_baseN_length, data_index_start, is_last_frame) = args
+    # config, frame, encoding_color_map, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
+    config_params, frame_bgr, encoding_color_map, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
@@ -117,7 +117,7 @@ def process_frame_optimized(args):
                                   bits_per_frame,
                                   frame=frame_bgr,
                                   frame_index=frame_index,
-                                  total_binary_length=total_binary_length,
+                                  total_baseN_length=total_baseN_length,
                                   data_index_start=data_index_start,
                                   is_last_frame=is_last_frame)
     # Convert each int to a single-byte object for writing

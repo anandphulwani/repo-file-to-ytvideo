@@ -3,7 +3,7 @@ from .config_loader import load_config
 
 class Metadata:
     # Define the metadata keys
-    METADATA_KEYS = ["filename", "filesize", "total_binary_length", "sha1_checksum"]
+    METADATA_KEYS = ["filename", "filesize", "total_baseN_length", "sha1_checksum"]
 
     def __init__(self):
         self.config = load_config('config.ini')
