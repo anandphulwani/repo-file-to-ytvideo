@@ -3,6 +3,8 @@ import configparser
 import math
 import os
 import json
+import numpy as np
+from .detect_base_from_json import detect_base_from_json
 
 
 def convert_to_appropriate_type(value):
@@ -116,6 +118,19 @@ def load_config(filename):
         config_dict['usable_width'].append(usable_width)
         config_dict['usable_height'].append(usable_height)
         usable_databoxes_in_frame = (usable_width // box_size) * (usable_height // box_size)
-        usable_databoxes_in_frame = usable_databoxes_in_frame if config_dict['allow_byte_to_be_split_between_frames'] else ((usable_databoxes_in_frame // 8) * 8)
+        usable_databoxes_in_frame = usable_databoxes_in_frame if config_dict['allow_byte_to_be_split_between_frames'] else (
+            (usable_databoxes_in_frame // 8) * 8)
         config_dict['usable_databoxes_in_frame'].append(usable_databoxes_in_frame)
+    #
+    #
+    """
+    Converts encoding_color_map from HEX to BGR NumPy arrays for Numba compatibility.
+    Stores the result in a dictionary for easy use.
+    """
+    if 'encoding_map_path' in config_dict:
+        with open(config_dict['encoding_map_path'], 'r') as file:
+            config_dict['encoding_color_map'] = json.load(file)
+
+        config_dict["encoding_base"], config_dict["encoding_format_string"], config_dict["encoding_chunk_size"], config_dict[
+            "encoding_function"], config_dict["decoding_function"] = detect_base_from_json(config_dict['encoding_color_map'])
     return config_dict
