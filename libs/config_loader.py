@@ -141,6 +141,7 @@ def load_config(filename):
 
         config_dict["encoding_base"], config_dict["encoding_format_string"], config_dict["encoding_chunk_size"], config_dict[
             "encoding_function"], config_dict["decoding_function"] = detect_base_from_json(config_dict['encoding_color_map'])
+        config_dict["encoding_bits_per_value"] = math.log2(config_dict["encoding_base"])
 
         color_bounds = {}
         color_rgb = {}
