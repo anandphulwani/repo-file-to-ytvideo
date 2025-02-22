@@ -2,6 +2,7 @@ import base64
 from tqdm import tqdm
 import os
 import sys
+import math
 import hashlib
 import zfec
 from .content_type import ContentType
@@ -78,7 +79,7 @@ class FileToEncodedData:
 
         # Determine how many baseN data to read
         needed_baseN_data = self.usable_databoxes_in_frame[self.content_type.value] - len(self.buffer)
-        bytes_to_read = needed_baseN_data // 8
+        bytes_to_read = math.ceil((needed_baseN_data * self.config["encoding_bits_per_value"]) / 8)
         file_chunk = ''
 
         if self.content_type == ContentType.PREMETADATA or self.content_type == ContentType.METADATA:
