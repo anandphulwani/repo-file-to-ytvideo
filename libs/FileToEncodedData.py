@@ -113,10 +113,10 @@ class FileToEncodedData:
         self.pbar.update(
             len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
         self.sha1.update(file_chunk)
-        self.total_baseN_length += len(file_chunk) * 8  # Assuming 8 bits per byte
 
         # Convert file bytes to a baseN string
         chunk_baseN_data = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
+        self.total_baseN_length += len(chunk_baseN_data)
 
         # Add new baseN data to buffer
         self.buffer += chunk_baseN_data
