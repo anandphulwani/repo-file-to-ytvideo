@@ -3,6 +3,7 @@ import configparser
 import math
 import os
 import json
+import re
 import numpy as np
 from .detect_base_from_json import detect_base_from_json
 
@@ -130,6 +131,13 @@ def load_config(filename):
     if 'encoding_map_path' in config_dict:
         with open(config_dict['encoding_map_path'], 'r') as file:
             config_dict['encoding_color_map'] = json.load(file)
+
+        for char, color_code in config_dict['encoding_color_map'].items():
+            if not isinstance(char, str) or len(char) != 1:
+                raise ValueError(f"Invalid character: {char} found in encoding map.")
+            if not isinstance(color_code, str) or not color_code.startswith("#") or len(color_code) != 7 or not re.fullmatch(
+                    r"#[0-9A-Fa-f]{6}", color_code):
+                raise ValueError(f"Invalid color code: {color_code} in encoding map.")
 
         config_dict["encoding_base"], config_dict["encoding_format_string"], config_dict["encoding_chunk_size"], config_dict[
             "encoding_function"], config_dict["decoding_function"] = detect_base_from_json(config_dict['encoding_color_map'])
