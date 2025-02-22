@@ -23,7 +23,7 @@ class FileToEncodedData:
         self.sha1 = hashlib.sha1()
         self.total_baseN_length = 0
         self.format_string = detect_base_from_json(config)[1]
-        self.usable_bits_in_frame = config['usable_bits_in_frame']
+        self.usable_databoxes_in_frame = config['usable_databoxes_in_frame']
         self.stream_encoded_file = open(f"{file_path}_encoded_stream.txt", "w") if debug else None
         self.file_size = os.path.getsize(file_path)
         self.file = open(file_path, "rb")
@@ -77,13 +77,13 @@ class FileToEncodedData:
                                  unit="B",
                                  unit_scale=True)
 
-        # Determine how many bytes to read
-        needed_bits = self.usable_bits_in_frame[self.content_type.value] - len(self.buffer)
-        bytes_to_read = needed_bits // 8
+        # Determine how many baseN data to read
+        needed_baseN_data = self.usable_databoxes_in_frame[self.content_type.value] - len(self.buffer)
+        bytes_to_read = needed_baseN_data // 8
         file_chunk = ''
 
         if self.content_type == ContentType.PREMETADATA or self.content_type == ContentType.METADATA:
-            # Convert binary string to bytes
+            # Read metadata/pre-metadata, extract chunk and convert to bytes
             if self.content_type == ContentType.PREMETADATA or self.current_metadata_key is not None:
                 metadata_or_premetadata_str = self.metadata[
                     self.current_metadata_key] if self.content_type == ContentType.METADATA else self.pre_metadata
@@ -115,15 +115,15 @@ class FileToEncodedData:
         self.sha1.update(file_chunk)
         self.total_baseN_length += len(file_chunk) * 8  # Assuming 8 bits per byte
 
-        # Convert file bytes to a binary string
-        chunk_bits = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
+        # Convert file bytes to a baseN string
+        chunk_baseN_data = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
 
-        # Add new bits to buffer
-        self.buffer += chunk_bits
+        # Add new baseN data to buffer
+        self.buffer += chunk_baseN_data
 
-        if len(self.buffer) >= self.usable_bits_in_frame[self.content_type.value]:
-            data_to_yield = self.buffer[:self.usable_bits_in_frame[self.content_type.value]]
-            self.buffer = self.buffer[self.usable_bits_in_frame[self.content_type.value]:]
+        if len(self.buffer) >= self.usable_databoxes_in_frame[self.content_type.value]:
+            data_to_yield = self.buffer[:self.usable_databoxes_in_frame[self.content_type.value]]
+            self.buffer = self.buffer[self.usable_databoxes_in_frame[self.content_type.value]:]
         else:
             data_to_yield = self.buffer
             self.buffer = ''
