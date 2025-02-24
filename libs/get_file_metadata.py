@@ -18,14 +18,14 @@ def read_frames_and_get_data_in_format(cap,
                                        num_frames,
                                        data_expected_length=None,
                                        convert_to=None):
-    frame_data_binary, total_frames_consumed = read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames,
-                                                           data_expected_length)
+    frame_data_str, total_frames_consumed = read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames,
+                                                        data_expected_length)
 
     if convert_to is None:
-        return frame_data_binary, total_frames_consumed
+        return frame_data_str, total_frames_consumed
 
-    int_value = int(frame_data_binary, 2)
-    byte_data = int_value.to_bytes((len(frame_data_binary) + 7) // 8, byteorder='big')
+    int_value = int(frame_data_str, 2)
+    byte_data = int_value.to_bytes((len(frame_data_str) + 7) // 8, byteorder='big')
     if convert_to == "string":
         return byte_data.decode('utf-8', errors='ignore'), total_frames_consumed
     elif convert_to == "bytearray":
