@@ -138,10 +138,13 @@ def process_images(video_path, encoding_map_path, debug=False):
 
     stream_encoded_file and stream_encoded_file.close()
 
+    # 4) Check final SHA1
     if sha1.hexdigest() == file_metadata.metadata["sha1_checksum"]:
-        print("Files decoded successfully, SHA1 matched: " + available_filename)
+        print(f"Files decoded successfully, SHA1 ({sha1.hexdigest()}) matched: {available_filename}")
     else:
-        print("Files decoded was unsuccessfull, SHA1 mismatched, deleting file if debug is false: " + available_filename)
+        print(
+            f"Files decoded was unsuccessful, SHA1 mismatched, metadata SHA1 ({file_metadata.metadata['sha1_checksum']}) != computed SHA1 ({sha1.hexdigest()}) => removing file (debug={debug})"
+        )
         if not debug:
             os.remove(available_filename)
 
