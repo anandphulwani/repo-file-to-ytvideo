@@ -41,7 +41,7 @@ def process_images(video_path, encoding_map_path, debug=False):
     write_queue = manager.Queue()
     heap = []
 
-    metadata_frames, file_metadata = get_file_metadata(config, cap, encoding_color_map, num_frames)
+    metadata_frames, file_metadata = get_file_metadata(config, cap, encoding_color_map, num_frames, debug)
     cap.release()  # Close video file
     cv2.destroyAllWindows()
 
