@@ -78,9 +78,9 @@ def process_frame_optimized(args):
     encoding_color_map_values_lower_bounds = config_params["encoding_color_map_values_lower_bounds"]
     encoding_color_map_values_upper_bounds = config_params["encoding_color_map_values_upper_bounds"]
 
-    frames_so_far = (frame_index - metadata_frames) // frame_step
+    frames_so_far = ((frame_index - 1 - metadata_frames) // frame_step)
     data_index_start = frames_so_far * databoxes_per_frame
-    is_last_frame = (frame_index >= (num_frames - frame_step + 1))
+    is_last_frame = (frame_index + 1 >= (num_frames - frame_step + 1))
 
     # Ensure dtype=uint8
     if frame_bgr.dtype != np.uint8:
