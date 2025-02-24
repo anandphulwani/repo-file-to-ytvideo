@@ -1,5 +1,6 @@
 import base64
 import sys
+import cv2
 import zfec
 from reedsolo import RSCodec
 from .content_type import ContentType
@@ -9,7 +10,7 @@ from .rot13_rot5 import rot13_rot5
 from .determine_color_key import determine_color_key
 
 
-def read_frames_and_get_data_in_format(vid,
+def read_frames_and_get_data_in_format(cap,
                                        config,
                                        content_type,
                                        encoding_color_map,
@@ -17,7 +18,7 @@ def read_frames_and_get_data_in_format(vid,
                                        num_frames,
                                        data_expected_length=None,
                                        convert_to=None):
-    frame_data_binary, total_frames_consumed = read_frames(vid, config, content_type, encoding_color_map, start_frame_index, num_frames,
+    frame_data_binary, total_frames_consumed = read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames,
                                                            data_expected_length)
 
     if convert_to is None:
@@ -76,7 +77,7 @@ def process_frame(frame, config, content_type, encoding_color_map, data_expected
     return data_expected_length, data_current_length, output_data, baseN_data_buffer
 
 
-def read_frames(vid, config, content_type, encoding_color_map, start_frame_index, num_frames, data_expected_length=None):
+def read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames, data_expected_length=None):
     baseN_data_buffer = ''
     output_data = ''
     data_current_length = 0
@@ -85,7 +86,10 @@ def read_frames(vid, config, content_type, encoding_color_map, start_frame_index
 
     # Iterate over frames, starting at the designated frame index.
     for frame_index in range(start_frame_index + config['pick_frame_to_read'][content_type.value], num_frames, frame_step):
-        frame = vid.get_data(frame_index)
+        # Set the video position to the desired frame
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+        # Read the frame
+        _, frame = cap.read()
         (data_expected_length, data_current_length, output_data, baseN_data_buffer) = process_frame(frame, config, content_type, encoding_color_map,
                                                                                                     data_expected_length, data_current_length,
                                                                                                     output_data, baseN_data_buffer)
@@ -130,13 +134,13 @@ def check_metadata_valid_using_checksum(metadata_str):
     return True, actual_metadata
 
 
-def read_metadata(vid, config, encoding_color_map, pm_obj, num_frames):
+def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     # 1st pass
     """
     MODE: Normal metadata
     """
     frames_consumed = pm_obj.premetadata_frame_count
-    metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(vid, config, ContentType.METADATA, encoding_color_map,
+    metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
                                                                                           frames_consumed, num_frames,
                                                                                           pm_obj.sections["normal"]["data_size"], "string")
     metadata_normal = metadata_normal.encode()
@@ -169,7 +173,7 @@ def read_metadata(vid, config, encoding_color_map, pm_obj, num_frames):
     MODE: Base64 metadata
     """
     frames_consumed += metadata_normal_frames_consumed
-    metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(vid, config, ContentType.METADATA, encoding_color_map,
+    metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
                                                                                           frames_consumed, num_frames,
                                                                                           pm_obj.sections["base64"]["data_size"], "string")
     metadata_base64 = base64.b64decode(metadata_base64).decode()
@@ -184,7 +188,7 @@ def read_metadata(vid, config, encoding_color_map, pm_obj, num_frames):
     MODE: Rot13 metadata
     """
     frames_consumed += metadata_base64_frames_consumed
-    metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(vid, config, ContentType.METADATA, encoding_color_map,
+    metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
                                                                                         frames_consumed, num_frames,
                                                                                         pm_obj.sections["rot13"]["data_size"], "string")
     metadata_rot13 = rot13_rot5(metadata_rot13)
@@ -199,7 +203,7 @@ def read_metadata(vid, config, encoding_color_map, pm_obj, num_frames):
     MODE: Reed-Solomon metadata
     """
     frames_consumed += metadata_rot13_frames_consumed
-    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(vid, config, ContentType.METADATA,
+    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA,
                                                                                                       encoding_color_map, frames_consumed, num_frames,
                                                                                                       pm_obj.sections["reed_solomon"]["data_size"],
                                                                                                       "bytearray")
@@ -218,7 +222,7 @@ def read_metadata(vid, config, encoding_color_map, pm_obj, num_frames):
     MODE: Zfec metadata
     """
     frames_consumed += metadata_reed_solomon_frames_consumed
-    metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(vid, config, ContentType.METADATA, encoding_color_map,
+    metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
                                                                                       frames_consumed, num_frames,
                                                                                       pm_obj.sections["zfec"]["data_size"], "string")
     # Decode using Zfec
@@ -237,15 +241,15 @@ def read_metadata(vid, config, encoding_color_map, pm_obj, num_frames):
         raise ValueError("Invalid metadata found in all metadata types.")
 
 
-def get_file_metadata(config, vid, encoding_color_map, num_frames):
+def get_file_metadata(config, cap, encoding_color_map, num_frames):
     # PREMETADATA
-    pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(vid, config, ContentType.PREMETADATA, encoding_color_map, 0,
+    pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(cap, config, ContentType.PREMETADATA, encoding_color_map, 0,
                                                                                 num_frames, None, "string")
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
 
     # METADATA
-    metadata = read_metadata(vid, config, encoding_color_map, pm_obj, num_frames)
+    metadata = read_metadata(cap, config, encoding_color_map, pm_obj, num_frames)
     m_obj = Metadata()
     m_obj.parse(metadata)
 
