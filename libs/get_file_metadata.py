@@ -115,7 +115,7 @@ def read_frames(cap, config, content_type, encoding_color_map, start_frame_index
                                                                                                     data_expected_length, data_current_length,
                                                                                                     output_data, baseN_data_buffer)
 
-        total_frames_consumed = frame_index - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
+        total_frames_consumed = frame_index + 1 - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
         # Break out of the loop once the full metadata has been read.
         if data_expected_length and data_current_length >= data_expected_length:
             break
