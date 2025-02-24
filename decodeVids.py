@@ -2,7 +2,6 @@ import cv2
 import os
 import json
 import math
-import imageio
 import heapq
 import sys
 import hashlib
@@ -31,7 +30,8 @@ def process_images(video_path, encoding_map_path, debug=False):
     with open(encoding_map_path, 'r') as file:
         encoding_color_map = json.load(file)
 
-    vid = imageio.get_reader(video_path, 'ffmpeg')
+    cap = cv2.VideoCapture(video_path)
+    check_video_file(config, cap)
     num_frames = count_frames(video_path)
     print(f"Number of frames: {num_frames}")
 
@@ -41,7 +41,9 @@ def process_images(video_path, encoding_map_path, debug=False):
     write_queue = manager.Queue()
     heap = []
 
-    metadata_frames, file_metadata = get_file_metadata(config, vid, encoding_color_map, num_frames)
+    metadata_frames, file_metadata = get_file_metadata(config, cap, encoding_color_map, num_frames)
+    cap.release()  # Close video file
+    cv2.destroyAllWindows()
 
     frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
     frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
