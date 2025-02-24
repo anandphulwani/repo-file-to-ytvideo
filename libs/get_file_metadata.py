@@ -241,16 +241,28 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
         raise ValueError("Invalid metadata found in all metadata types.")
 
 
-def get_file_metadata(config, cap, encoding_color_map, num_frames):
+def get_file_metadata(config, cap, encoding_color_map, num_frames, debug):
     # PREMETADATA
     pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(cap, config, ContentType.PREMETADATA, encoding_color_map, 0,
                                                                                 num_frames, None, "string")
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
+    print("# ------------------------------------------") if debug else None
+    print("# ------------------------------------------") if debug else None
+    print("# ------------PRE METADATA------------------") if debug else None
+    print("# ------------------------------------------") if debug else None
+    print(pm_obj) if debug else None
+    print("# ------------------------------------------") if debug else None
 
     # METADATA
     metadata = read_metadata(cap, config, encoding_color_map, pm_obj, num_frames)
     m_obj = Metadata()
     m_obj.parse(metadata)
+    print("# ------------------------------------------") if debug else None
+    print("# ------------------------------------------") if debug else None
+    print("# ---------------METADATA-------------------") if debug else None
+    print("# ------------------------------------------") if debug else None
+    print(m_obj) if debug else None
+    print("# ------------------------------------------") if debug else None
 
     return pm_obj.premetadata_and_metadata_frame_count, m_obj
