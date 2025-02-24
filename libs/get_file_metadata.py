@@ -18,9 +18,10 @@ def read_frames_and_get_data_in_format(cap,
                                        start_frame_index,
                                        num_frames,
                                        data_expected_length=None,
-                                       convert_to=None):
+                                       convert_to=None,
+                                       debug=False):
     frame_data_str, total_frames_consumed = read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames,
-                                                        data_expected_length)
+                                                        data_expected_length, debug)
     base = config["encoding_base"]
 
     if convert_to is None:
@@ -96,7 +97,7 @@ def process_frame(frame, config, content_type, encoding_color_map, data_expected
     return data_expected_length, data_current_length, output_data, baseN_data_buffer
 
 
-def read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames, data_expected_length=None):
+def read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames, data_expected_length=None, debug=False):
     """Reads frames and extracts encoded data as per the encoding map's base."""
 
     baseN_data_buffer = ''
@@ -104,9 +105,13 @@ def read_frames(cap, config, content_type, encoding_color_map, start_frame_index
     data_current_length = 0
 
     frame_step = config['total_frames_repetition'][content_type.value]
+    print("read_frames: Init: Reading frame_index: ", (start_frame_index + config['pick_frame_to_read'][content_type.value] - 1)) if debug else None
 
     # Iterate over frames, starting at the designated frame index.
     for frame_index in range(start_frame_index + config['pick_frame_to_read'][content_type.value] - 1, num_frames, frame_step):
+        print(
+            f"read_frames: Loop: Reading frame {frame_index}, frame_step: {frame_step}, start_frame_index: {start_frame_index}, content_type: {content_type}"
+        ) if debug else None
         # Set the video position to the desired frame
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         # Read the frame
@@ -120,6 +125,7 @@ def read_frames(cap, config, content_type, encoding_color_map, start_frame_index
         if data_expected_length and data_current_length >= data_expected_length:
             break
 
+    print(f"read_frames: Total frames consumed: {total_frames_consumed}") if debug else None
     return output_data, total_frames_consumed
 
 
@@ -155,17 +161,21 @@ def check_metadata_valid_using_checksum(metadata_str):
     return True, actual_metadata
 
 
-def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
+def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=False):
     # 1st pass
     """
     MODE: Normal metadata
     """
     frames_consumed = pm_obj.premetadata_frame_count
+    print(f"read_metadata: Init: Frames consumed before metadata: {frames_consumed}") if debug else None
+
     metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(
         cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
-        get_length_in_base(pm_obj.sections["normal"]["data_size"], config["encoding_bits_per_value"]), "string")
+        get_length_in_base(pm_obj.sections["normal"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_normal = metadata_normal.encode()
     triplet_length = len(metadata_normal) // 3
+
+    print("read_metadata: Read metadata_normal: ", metadata_normal) if debug else None
 
     # Extract the three copies.
     metadata_normal_copy1 = metadata_normal[:triplet_length]
@@ -196,7 +206,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     frames_consumed += metadata_normal_frames_consumed
     metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(
         cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
-        get_length_in_base(pm_obj.sections["base64"]["data_size"], config["encoding_bits_per_value"]), "string")
+        get_length_in_base(pm_obj.sections["base64"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_base64 = base64.b64decode(metadata_base64).decode()
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_base64)
@@ -211,7 +221,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     frames_consumed += metadata_base64_frames_consumed
     metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(
         cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
-        get_length_in_base(pm_obj.sections["rot13"]["data_size"], config["encoding_bits_per_value"]), "string")
+        get_length_in_base(pm_obj.sections["rot13"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_rot13 = rot13_rot5(metadata_rot13)
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_rot13)
@@ -226,7 +236,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     frames_consumed += metadata_rot13_frames_consumed
     metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(
         cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
-        get_length_in_base(pm_obj.sections["reed_solomon"]["data_size"], config["encoding_bits_per_value"]), "bytearray")
+        get_length_in_base(pm_obj.sections["reed_solomon"]["data_size"], config["encoding_bits_per_value"]), "bytearray", debug)
     # Decode using Reed-Solomon
     metadata_reed_solomon = RSCodec(int(pm_obj.sections["reed_solomon"]["rscodec_value"])).decode(metadata_reed_solomon)
     metadata_reed_solomon = metadata_reed_solomon[0] if isinstance(metadata_reed_solomon, tuple) else metadata_reed_solomon
@@ -244,7 +254,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     frames_consumed += metadata_reed_solomon_frames_consumed
     metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(
         cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
-        get_length_in_base(pm_obj.sections["zfec"]["data_size"], config["encoding_bits_per_value"]), "string")
+        get_length_in_base(pm_obj.sections["zfec"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     # Decode using Zfec
     zfec_k, zfec_m = 3, 5  # Same values used for encoding
     zfec_decoder = zfec.Decoder(zfec_k, zfec_m)
@@ -264,7 +274,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
 def get_file_metadata(config, cap, encoding_color_map, num_frames, debug):
     # PREMETADATA
     pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(cap, config, ContentType.PREMETADATA, encoding_color_map, 0,
-                                                                                num_frames, None, "string")
+                                                                                num_frames, None, "string", debug)
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
     print("# ------------------------------------------") if debug else None
@@ -275,7 +285,7 @@ def get_file_metadata(config, cap, encoding_color_map, num_frames, debug):
     print("# ------------------------------------------") if debug else None
 
     # METADATA
-    metadata = read_metadata(cap, config, encoding_color_map, pm_obj, num_frames)
+    metadata = read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug)
     m_obj = Metadata()
     m_obj.parse(metadata)
     print("# ------------------------------------------") if debug else None
