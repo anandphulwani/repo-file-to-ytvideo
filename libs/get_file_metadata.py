@@ -161,9 +161,9 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     MODE: Normal metadata
     """
     frames_consumed = pm_obj.premetadata_frame_count
-    metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
-                                                                                          frames_consumed, num_frames,
-                                                                                          get_length_in_base(pm_obj.sections["normal"]["data_size"], config["encoding_bits_per_value"]), "string")
+    metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(
+        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        get_length_in_base(pm_obj.sections["normal"]["data_size"], config["encoding_bits_per_value"]), "string")
     metadata_normal = metadata_normal.encode()
     triplet_length = len(metadata_normal) // 3
 
@@ -194,9 +194,9 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     MODE: Base64 metadata
     """
     frames_consumed += metadata_normal_frames_consumed
-    metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
-                                                                                          frames_consumed, num_frames,
-                                                                                          get_length_in_base(pm_obj.sections["base64"]["data_size"], config["encoding_bits_per_value"]), "string")
+    metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(
+        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        get_length_in_base(pm_obj.sections["base64"]["data_size"], config["encoding_bits_per_value"]), "string")
     metadata_base64 = base64.b64decode(metadata_base64).decode()
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_base64)
@@ -209,9 +209,9 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     MODE: Rot13 metadata
     """
     frames_consumed += metadata_base64_frames_consumed
-    metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
-                                                                                        frames_consumed, num_frames,
-                                                                                        get_length_in_base(pm_obj.sections["rot13"]["data_size"], config["encoding_bits_per_value"]), "string")
+    metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(
+        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        get_length_in_base(pm_obj.sections["rot13"]["data_size"], config["encoding_bits_per_value"]), "string")
     metadata_rot13 = rot13_rot5(metadata_rot13)
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_rot13)
@@ -224,10 +224,9 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     MODE: Reed-Solomon metadata
     """
     frames_consumed += metadata_rot13_frames_consumed
-    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA,
-                                                                                                      encoding_color_map, frames_consumed, num_frames,
-                                                                                                      get_length_in_base(pm_obj.sections["reed_solomon"]["data_size"], config["encoding_bits_per_value"]),
-                                                                                                      "bytearray")
+    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(
+        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        get_length_in_base(pm_obj.sections["reed_solomon"]["data_size"], config["encoding_bits_per_value"]), "bytearray")
     # Decode using Reed-Solomon
     metadata_reed_solomon = RSCodec(int(pm_obj.sections["reed_solomon"]["rscodec_value"])).decode(metadata_reed_solomon)
     metadata_reed_solomon = metadata_reed_solomon[0] if isinstance(metadata_reed_solomon, tuple) else metadata_reed_solomon
@@ -243,9 +242,9 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames):
     MODE: Zfec metadata
     """
     frames_consumed += metadata_reed_solomon_frames_consumed
-    metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(cap, config, ContentType.METADATA, encoding_color_map,
-                                                                                      frames_consumed, num_frames,
-                                                                                      get_length_in_base(pm_obj.sections["zfec"]["data_size"], config["encoding_bits_per_value"]), "string")
+    metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(
+        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        get_length_in_base(pm_obj.sections["zfec"]["data_size"], config["encoding_bits_per_value"]), "string")
     # Decode using Zfec
     zfec_k, zfec_m = 3, 5  # Same values used for encoding
     zfec_decoder = zfec.Decoder(zfec_k, zfec_m)
