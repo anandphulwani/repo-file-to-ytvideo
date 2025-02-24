@@ -1,15 +1,15 @@
 import cv2
 import os
 import json
-import math
 import heapq
 import sys
 import hashlib
+import threading
+from queue import Queue
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager
 from libs.config_loader import load_config
 from libs.check_video_file import check_video_file
-from libs.generate_frame_args import generate_frame_args
 from libs.content_type import ContentType
 from libs.downloadFromYT import downloadFromYT
 from libs.get_available_filename_to_decode import get_available_filename_to_decode
@@ -17,13 +17,10 @@ from libs.count_frames import count_frames
 from libs.writer_process import writer_process
 from libs.process_frame_optimized import process_frame_optimized
 from libs.get_file_metadata import get_file_metadata
+from libs.produce_tasks import produce_tasks
+from libs.frame_reader_thread import frame_reader_thread
 
 config = load_config('config.ini')
-
-
-def frame_data_iter(start_index, end_index, frame_step):
-    for i in range(start_index, end_index + 1, frame_step):
-        yield (ContentType.DATACONTENT, i)
 
 
 def process_images(video_path, encoding_map_path, debug=False):
@@ -35,27 +32,9 @@ def process_images(video_path, encoding_map_path, debug=False):
     num_frames = count_frames(video_path)
     print(f"Number of frames: {num_frames}")
 
-    sha1 = hashlib.sha1()
-
-    manager = Manager()
-    write_queue = manager.Queue()
-    heap = []
-
     metadata_frames, file_metadata = get_file_metadata(config, cap, encoding_color_map, num_frames, debug)
     cap.release()  # Close video file
     cv2.destroyAllWindows()
-
-    frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
-    frame_step = config['total_frames_repetition'][ContentType.DATACONTENT.value]
-
-    pbar = tqdm(total=math.floor((num_frames - metadata_frames) / frame_step), desc="Processing Frames")
-
-    stream_encoded_file = open(f"{file_metadata.metadata['filename']}_encoded_stream.txt", "r") if debug else None
-    stream_decoded_file = open(f"{file_metadata.metadata['filename']}_decoded_stream.txt", "w") if debug else None
-
-    next_frame_to_write = frame_start
-
-    heap = []  # Process results as they become available
 
     # 2) Prepare parameters
     frame_start = metadata_frames + config['pick_frame_to_read'][ContentType.DATACONTENT.value]
@@ -70,73 +49,120 @@ def process_images(video_path, encoding_map_path, debug=False):
         "box_step": config["data_box_size_step"][ContentType.DATACONTENT.value],
         "usable_w": config["usable_width"][ContentType.DATACONTENT.value],
         "usable_h": config["usable_height"][ContentType.DATACONTENT.value],
-        "databoxes_per_frame": config["usable_databoxes_in_frame"][ContentType.DATACONTENT.value]
+        "databoxes_per_frame": databoxes_per_frame,
+        "encoding_base": config["encoding_base"],
+        "encoding_chunk_size": config["encoding_chunk_size"],
+        "decoding_function": config["decoding_function"],
+        "encoding_color_map_keys": config["encoding_color_map_keys"],
+        "encoding_color_map_values": config["encoding_color_map_values"],
+        "encoding_color_map_values_lower_bounds": config["encoding_color_map_values_lower_bounds"],
+        "encoding_color_map_values_upper_bounds": config["encoding_color_map_values_upper_bounds"],
     }
 
+    #---------------------------------------------------------------------
+    # B) PREP FOR WRITING & SHA1
+    #---------------------------------------------------------------------
+    manager = Manager()
+    write_queue = manager.Queue()
+    writer_pool = Pool(1)  # a single writer
+    available_filename = get_available_filename_to_decode(config, file_metadata.metadata["filename"])
+    writer_pool.apply_async(writer_process, (write_queue, available_filename))
+
+    sha1 = hashlib.sha1()
+
+    #---------------------------------------------------------------------
+    # C) OPEN VIDEO & LAUNCH READER THREAD
+    #---------------------------------------------------------------------
     cap = cv2.VideoCapture(video_path)
     check_video_file(config, cap)
 
-    # A small generator that tells which frames we want to decode (and which we skip).
-    frame_iter = frame_data_iter(start_index=frame_start, end_index=end_index, frame_step=frame_step)
+    # This event allows us to signal the thread to stop if needed
+    stop_event = threading.Event()
 
-    # Step B: Setup for DATACONTENT reading (the largest portion)
-    # Create a multiprocessing pool to process the remaining frames except the first and last one
-    writer_pool = Pool(1)
-    available_filename = get_available_filename_to_decode(config, file_metadata.metadata["filename"])
-    writer_pool.apply_async(writer_process, (write_queue, available_filename))
-    with Pool(cpu_count()) as pool:
-        result_iterator = pool.imap_unordered(
-            process_frame_optimized,
-            (
-                (
-                    config_params,
-                    frame,  # BGR frame
-                    encoding_color_map,
-                    frame_index,
-                    frame_step,
-                    total_baseN_length,
-                    num_frames,
-                    metadata_frames)
-                for (frame, config, encoding_color_map, local_frame_index, frame_index, content_type, debug) in generate_frame_args(
-                    cap=cap,
-                    config=config,  # or config_params—depends on your code
-                    frame_data_iter=frame_iter,
-                    encoding_color_map=None,  # if you need it, or pass a real map
-                    debug=debug,
-                    start_index=frame_start,
-                    frame_step=frame_step)))
+    # Create a queue to hold frames
+    frame_queue = Queue(maxsize=32)  # buffer up to N frames
 
-        for result in result_iterator:
-            heapq.heappush(heap, result)
-            while heap and heap[0][0] == next_frame_to_write:
-                return_value = heapq.heappop(heap)
-                frame_index, output_data = return_value
-                for data_bytes in output_data:
-                    sha1.update(data_bytes)
+    # Start the dedicated reading thread
+    t_reader = threading.Thread(target=frame_reader_thread, args=(cap, frame_queue, stop_event, frame_start, end_index, frame_step), daemon=True)
+    t_reader.start()
 
-                    # Verify the data read from the stream_encoded_file
-                    if stream_encoded_file:
-                        # Read the corresponding bytes from the stream_encoded_file
-                        data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
-                        stream_decoded_file and stream_decoded_file.write(data_binary_string)
-                        expected_binary_string = stream_encoded_file.read(len(data_binary_string))
-                        if data_binary_string != expected_binary_string:
-                            print(f"Mismatch at frame {frame_index}: expected:\n{expected_binary_string}\n, got:\n{data_binary_string}\n")
-                            sys.exit(1)
+    #---------------------------------------------------------------------
+    # D) MULTIPROCESSING POOL & IMAP
+    #---------------------------------------------------------------------
+    # We'll feed tasks from produce_tasks(...) to process_frame_optimized(...)
+    pool = Pool(cpu_count())
 
-                write_queue.put(return_value)
-                next_frame_to_write += frame_step
-                pbar.update(1)
-        pool.close()
-        pool.join()
+    # If you keep a debug text check:
+    stream_encoded_file = open(f"{file_metadata.metadata['filename']}_encoded_stream.txt", "r") if debug else None
+    stream_decoded_file = open(f"{file_metadata.metadata['filename']}_decoded_stream.txt", "w") if debug else None
 
+    # We'll track results in a min-heap so we can output in ascending order
+    heap = []
+    next_frame_to_write = frame_start
+
+    # We expect this many frames for DATACONTENT
+    count_main_frames = max(0, (end_index - frame_start) // frame_step + 1)
+    pbar = tqdm(total=count_main_frames, desc="Decoding DATACONTENT")
+
+    # Fire off the parallel tasks
+    result_iterator = pool.imap_unordered(
+        process_frame_optimized,
+        produce_tasks(frame_queue=frame_queue,
+                      stop_event=stop_event,
+                      config_params=config_params,
+                      encoding_color_map=encoding_color_map,
+                      frame_step=frame_step,
+                      total_baseN_length=total_baseN_length,
+                      num_frames=num_frames,
+                      metadata_frames=metadata_frames))
+
+    # E) COLLECT RESULTS
+    for result in result_iterator:
+        # result is (frame_index, output_data)
+        heapq.heappush(heap, result)
+        # flush from the heap in ascending order
+        while heap and heap[0][0] == next_frame_to_write:
+            frame_index, output_data = heapq.heappop(heap)
+
+            # Update SHA1 & debug checks
+            for data_bytes in output_data:
+                sha1.update(data_bytes)
+                if stream_encoded_file:
+                    data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
+                    if stream_decoded_file:
+                        stream_decoded_file.write(data_binary_string)
+                    expected_binary_string = stream_encoded_file.read(len(data_binary_string))
+                    if data_binary_string != expected_binary_string:
+                        print(f"Mismatch at frame {frame_index}: "
+                              f"expected={expected_binary_string}, got={data_binary_string}")
+                        sys.exit(1)
+
+            # Pass data to writer
+            write_queue.put((frame_index, output_data))
+
+            next_frame_to_write += frame_step
+            pbar.update(1)
+
+    #---------------------------------------------------------------------
+    # F) CLEANUP
+    #---------------------------------------------------------------------
+    # 1) Stop the thread & close the pool
+    stop_event.set()
+    frame_queue.put(None)  # to ensure produce_tasks stops
+    pool.close()
+    pool.join()
+
+    t_reader.join(timeout=1.0)
+    cap.release()
+    pbar.close()
+
+    # 2) Signal writer to finish
     write_queue.put(None)
     writer_pool.close()
     writer_pool.join()
 
-    pbar.close()
-
     stream_encoded_file and stream_encoded_file.close()
+    stream_decoded_file and stream_decoded_file.close()
 
     # 4) Check final SHA1
     if sha1.hexdigest() == file_metadata.metadata["sha1_checksum"]:
