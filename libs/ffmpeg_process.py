@@ -32,3 +32,4 @@ def close_ffmpeg_process(ffmpeg_process, content_type, segment_idx=None):
         print(
             f"{'PREMETADATA' if content_type == ContentType.PREMETADATA else 'METADATA' if content_type == ContentType.METADATA else f'DATACONTENT segment {segment_idx}'} completed"
         )
+    return ffmpeg_process
