@@ -110,7 +110,6 @@ def process_images(video_path, encoding_map_path, debug=False):
         produce_tasks(frame_queue=frame_queue,
                       stop_event=stop_event,
                       config_params=config_params,
-                      encoding_color_map=encoding_color_map,
                       frame_step=frame_step,
                       total_baseN_length=total_baseN_length,
                       num_frames=num_frames,
