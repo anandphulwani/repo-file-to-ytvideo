@@ -51,8 +51,8 @@ def process_video_frames(file_path, config, debug):
                 _, frame_to_write, content_type = heapq.heappop(heap)
                 should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
                 if should_start_new_segment:
-                    close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
-                                         f"{segment_index:02d}") if content_and_metadata_stream else None
+                    content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
+                                                                       f"{segment_index:02d}") if content_and_metadata_stream else None
 
                     # Determine parameters for create_ffmpeg_process
                     segment_index = segment_index + 1 if should_start_new_segment else segment_index
@@ -66,7 +66,8 @@ def process_video_frames(file_path, config, debug):
                     gc.collect()
         gc.collect()
 
-    close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT, f"{segment_index:02d}") if content_and_metadata_stream else None
+    content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
+                                                       f"{segment_index:02d}") if content_and_metadata_stream else None
     # Start a new FFmpeg process
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.METADATA)
     print(f"Started FFmpeg process for metadata segment.")
@@ -78,7 +79,7 @@ def process_video_frames(file_path, config, debug):
     gc.collect()
 
     # Release everything if the job is finished
-    close_ffmpeg_process(content_and_metadata_stream, ContentType.METADATA, None)
+    content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.METADATA, None)
 
     # Start a new FFmpeg process
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.PREMETADATA)
@@ -92,7 +93,7 @@ def process_video_frames(file_path, config, debug):
 
     # Release everything if the job is finished
     cap.release()
-    close_ffmpeg_process(content_and_metadata_stream, ContentType.PREMETADATA, None)
+    content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.PREMETADATA, None)
     print("Modification is done.")
 
 
