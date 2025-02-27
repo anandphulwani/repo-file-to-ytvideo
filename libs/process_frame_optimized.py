@@ -61,9 +61,7 @@ def process_frame_optimized(args):
     """
     global carry_over_chunk
 
-    # (frame_index, frame_bgr, total_baseN_length, data_index_start, is_last_frame) = args
-    # config, frame, encoding_color_map, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
-    config_params, frame_bgr, encoding_color_map, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
+    config_params, frame_bgr, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
