@@ -6,11 +6,11 @@ from .content_type import ContentType
 def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
     content_output_path = None
     if content_type == ContentType.PREMETADATA:
-        content_output_path = path.join(output_dir, 'pre_metadata.ts')
+        content_output_path = path.join(output_dir, 'pre_metadata.mp4')
     elif content_type == ContentType.METADATA:
-        content_output_path = path.join(output_dir, f'metadata.ts')
+        content_output_path = path.join(output_dir, f'metadata.mp4')
     elif content_type == ContentType.DATACONTENT:
-        content_output_path = path.join(output_dir, f'content_part{segment_idx:02d}.ts')
+        content_output_path = path.join(output_dir, f'content_part{segment_idx:02d}.mp4')
     return (ffmpeg.input('pipe:',
                          framerate=config['output_fps'],
                          format='rawvideo',
