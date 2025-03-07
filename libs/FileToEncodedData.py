@@ -1,4 +1,5 @@
 import base64
+import binascii
 from tqdm import tqdm
 import os
 import sys
@@ -113,8 +114,15 @@ class FileToEncodedData:
             len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
         self.sha1.update(file_chunk)
 
-        # Convert file bytes to a baseN string
-        chunk_baseN_data = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
+        # Convert file_chunk to baseN data (either C-based or fallback)
+        if self.config["encoding_base"] == 16:  # Hex encoding
+            chunk_baseN_data = binascii.hexlify(file_chunk).decode('ascii') if file_chunk else ''
+        elif self.config["encoding_base"] == 64:  # Base64 encoding
+            chunk_baseN_data = base64.b64encode(file_chunk).decode('ascii') if file_chunk else ''
+        else:
+            # Fallback to old method if the encoding is custom
+            chunk_baseN_data = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
+
         self.total_baseN_length += len(chunk_baseN_data)
 
         # Add new baseN data to buffer
