@@ -24,7 +24,7 @@ class FileToEncodedData:
         self.usable_databoxes_in_frame = config['usable_databoxes_in_frame']
         self.stream_encoded_file = open(f"{file_path}_encoded_stream.txt", "w") if debug else None
         self.file_size = os.path.getsize(file_path)
-        self.file = open(file_path, "rb")
+        self.file = open(file_path, "rb", buffering=100 * 1024 * 1024)
         self.pbar = tqdm(total=self.file_size, desc="Processing File", unit="B", unit_scale=True)
         self.buffer = ''
         self.pre_metadata = None
