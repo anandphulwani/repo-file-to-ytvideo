@@ -1,5 +1,6 @@
 from os import path
 import ffmpeg
+import subprocess
 from .content_type import ContentType
 
 
@@ -21,7 +22,9 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
                                                                                        b='2000k',
                                                                                        crf=23,
                                                                                        bufsize='1024k').global_args(
-                                                                                           '-loglevel', 'error').run_async(pipe_stdin=True))
+                                                                                           '-loglevel', 'error').run_async(pipe_stdin=True,
+                                                                                                   pipe_stdout=subprocess.DEVNULL,
+                                                                                                   pipe_stderr=subprocess.DEVNULL))
 
 
 def close_ffmpeg_process(ffmpeg_process, content_type, segment_idx=None):
