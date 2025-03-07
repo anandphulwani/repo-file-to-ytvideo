@@ -16,7 +16,6 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
                          format='rawvideo',
                          pix_fmt='bgr24',
                          s=f'{config["frame_width"]}x{config["frame_height"]}').output(content_output_path,
-                                                                                       f='mpegts',
                                                                                        vcodec='libx264',
                                                                                        pix_fmt='yuv420p',
                                                                                        b='2000k',
