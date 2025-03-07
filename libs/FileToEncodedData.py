@@ -78,8 +78,9 @@ class FileToEncodedData:
 
         # Determine how many baseN data to read
         needed_baseN_data = self.usable_databoxes_in_frame[self.content_type.value] - len(self.buffer)
-        bytes_to_read = math.ceil((needed_baseN_data * self.config["encoding_bits_per_value"]) / 8)
-        file_chunk = ''
+        if needed_baseN_data > 0:
+            bytes_to_read = max(math.ceil((needed_baseN_data * self.config["encoding_bits_per_value"]) / 8), 10 * 1024 * 1024)  # Read at least 10 MB
+            file_chunk = b''
 
         if self.content_type == ContentType.PREMETADATA or self.content_type == ContentType.METADATA:
             # Read metadata/pre-metadata, extract chunk and convert to bytes
