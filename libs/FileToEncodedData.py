@@ -96,7 +96,7 @@ class FileToEncodedData:
             else:
                 file_chunk = self.file.read(bytes_to_read)
 
-            if not file_chunk:
+            if not file_chunk and len(self.buffer) == 0:
                 self.pbar.close()
                 if self.content_type == ContentType.PREMETADATA:
                     self.content_type = None
