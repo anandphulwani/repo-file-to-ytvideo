@@ -5,6 +5,7 @@ import os
 import sys
 import math
 import hashlib
+from .detect_base_from_json import get_length_from_base
 from .content_type import ContentType
 from .metadata_utils import get_metadata, get_pre_metadata
 
@@ -110,9 +111,6 @@ class FileToEncodedData:
                     self.content_type = ContentType.METADATA
                 raise StopIteration
 
-            # Update progress and metadata
-            self.pbar.update(
-                len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
             self.sha1.update(file_chunk)
 
             # Convert file_chunk to baseN data (either C-based or fallback)
@@ -135,6 +133,9 @@ class FileToEncodedData:
         else:
             data_to_yield = self.buffer
             self.buffer = ''
+
+        # Update progress and metadata
+        self.pbar.update(get_length_from_base(len(data_to_yield), self.config["encoding_bits_per_value"]))
 
         self.stream_encoded_file.write(data_to_yield) if self.stream_encoded_file and self.content_type == ContentType.DATACONTENT else None
         self.metadata_item_frame_count = self.metadata_item_frame_count + 1 if self.content_type == ContentType.METADATA else 0
