@@ -82,6 +82,12 @@ def get_length_in_base(data_length, encoding_bits_per_value):
     return math.ceil(total_bits / encoding_bits_per_value)
 
 
+def get_length_from_base(base_length, encoding_bits_per_value):
+    """Returns the original data length from the base-encoded length."""
+    total_bits = base_length * encoding_bits_per_value
+    return math.ceil(total_bits / 8)  # Convert bits back to bytes
+
+
 # Encoding Functions
 def encode_base16(data):
     """Encodes binary or text data into a hexadecimal string."""
