@@ -82,52 +82,52 @@ class FileToEncodedData:
             bytes_to_read = max(math.ceil((needed_baseN_data * self.config["encoding_bits_per_value"]) / 8), 10 * 1024 * 1024)  # Read at least 10 MB
             file_chunk = b''
 
-        if self.content_type == ContentType.PREMETADATA or self.content_type == ContentType.METADATA:
-            # Read metadata/pre-metadata, extract chunk and convert to bytes
-            if self.content_type == ContentType.PREMETADATA or self.current_metadata_key is not None:
-                metadata_or_premetadata_str = self.metadata[
-                    self.current_metadata_key] if self.content_type == ContentType.METADATA else self.pre_metadata
+            if self.content_type == ContentType.PREMETADATA or self.content_type == ContentType.METADATA:
+                # Read metadata/pre-metadata, extract chunk and convert to bytes
+                if self.content_type == ContentType.PREMETADATA or self.current_metadata_key is not None:
+                    metadata_or_premetadata_str = self.metadata[
+                        self.current_metadata_key] if self.content_type == ContentType.METADATA else self.pre_metadata
 
-                start_pos = self.metadata_or_pre_metadata_read_position
-                end_pos = min(start_pos + bytes_to_read, len(metadata_or_premetadata_str))
+                    start_pos = self.metadata_or_pre_metadata_read_position
+                    end_pos = min(start_pos + bytes_to_read, len(metadata_or_premetadata_str))
 
-                file_chunk = metadata_or_premetadata_str[start_pos:end_pos].encode('utf-8')
-                self.metadata_or_pre_metadata_read_position += (end_pos - start_pos)
-        else:
-            file_chunk = self.file.read(bytes_to_read)
+                    file_chunk = metadata_or_premetadata_str[start_pos:end_pos].encode('utf-8')
+                    self.metadata_or_pre_metadata_read_position += (end_pos - start_pos)
+            else:
+                file_chunk = self.file.read(bytes_to_read)
 
-        if not file_chunk:
-            self.pbar.close()
-            if self.content_type == ContentType.PREMETADATA:
-                self.content_type = None
-            if self.content_type == ContentType.METADATA:
-                self.create_pre_metadata()
-                self.content_type = ContentType.PREMETADATA
-            elif self.content_type == ContentType.DATACONTENT:
-                self.stream_encoded_file.close() if self.stream_encoded_file else None
-                self.file.close()
-                self.create_metadata()
-                self.content_type = ContentType.METADATA
-            raise StopIteration
+            if not file_chunk:
+                self.pbar.close()
+                if self.content_type == ContentType.PREMETADATA:
+                    self.content_type = None
+                if self.content_type == ContentType.METADATA:
+                    self.create_pre_metadata()
+                    self.content_type = ContentType.PREMETADATA
+                elif self.content_type == ContentType.DATACONTENT:
+                    self.stream_encoded_file.close() if self.stream_encoded_file else None
+                    self.file.close()
+                    self.create_metadata()
+                    self.content_type = ContentType.METADATA
+                raise StopIteration
 
-        # Update progress and metadata
-        self.pbar.update(
-            len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
-        self.sha1.update(file_chunk)
+            # Update progress and metadata
+            self.pbar.update(
+                len(file_chunk * 8 if self.content_type == ContentType.METADATA or self.content_type == ContentType.PREMETADATA else file_chunk))
+            self.sha1.update(file_chunk)
 
-        # Convert file_chunk to baseN data (either C-based or fallback)
-        if self.config["encoding_base"] == 16:  # Hex encoding
-            chunk_baseN_data = binascii.hexlify(file_chunk).decode('ascii') if file_chunk else ''
-        elif self.config["encoding_base"] == 64:  # Base64 encoding
-            chunk_baseN_data = base64.b64encode(file_chunk).decode('ascii') if file_chunk else ''
-        else:
-            # Fallback to old method if the encoding is custom
-            chunk_baseN_data = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
+            # Convert file_chunk to baseN data (either C-based or fallback)
+            if self.config["encoding_base"] == 16:  # Hex encoding
+                chunk_baseN_data = binascii.hexlify(file_chunk).decode('ascii') if file_chunk else ''
+            elif self.config["encoding_base"] == 64:  # Base64 encoding
+                chunk_baseN_data = base64.b64encode(file_chunk).decode('ascii') if file_chunk else ''
+            else:
+                # Fallback to old method if the encoding is custom
+                chunk_baseN_data = "".join(f"{byte:{self.format_string}}" for byte in file_chunk)
 
-        self.total_baseN_length += len(chunk_baseN_data)
+            self.total_baseN_length += len(chunk_baseN_data)
 
-        # Add new baseN data to buffer
-        self.buffer += chunk_baseN_data
+            # Add new baseN data to buffer
+            self.buffer += chunk_baseN_data
 
         if len(self.buffer) >= self.usable_databoxes_in_frame[self.content_type.value]:
             data_to_yield = self.buffer[:self.usable_databoxes_in_frame[self.content_type.value]]
