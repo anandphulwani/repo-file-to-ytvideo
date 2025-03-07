@@ -9,7 +9,6 @@ from libs.config_loader import load_config
 from libs.content_type import ContentType
 from libs.FileToEncodedData import FileToEncodedData
 from libs.ffmpeg_process import create_ffmpeg_process, close_ffmpeg_process
-from libs.merge_ts_to_mp4_dynamic_chunk import merge_ts_to_mp4_dynamic_chunk
 from libs.generate_frame_args import generate_frame_args
 from libs.check_video_file import check_video_file
 from libs.encode_frame import encode_frame
@@ -110,7 +109,6 @@ if __name__ == "__main__":
     output_dir = path.join("storage", "output", output_dir)
 
     process_video_frames(file_path, config, debug=False)
-    merge_ts_to_mp4_dynamic_chunk(output_dir, path.join("storage", "output", "Test03.iso.mp4"), path.join("storage", "output"))
 
     # process_video_frames(path.join("storage", "gparted.iso"), config)
 
