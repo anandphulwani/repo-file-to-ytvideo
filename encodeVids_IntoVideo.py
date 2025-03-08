@@ -13,7 +13,7 @@ from libs.merge_mp4_files_incremental import merge_mp4_files_incremental
 from libs.generate_frame_args import generate_frame_args
 from libs.check_video_file import check_video_file
 from libs.encode_frame import encode_frame
-from libs.write_frame_repeatedly import write_frame_repeatedly
+from libs.write_frame import write_frame
 
 config = load_config('config.ini')
 
@@ -60,7 +60,7 @@ def process_video_frames(file_path, config, debug):
                     print(f"Started FFmpeg process for content segment {segment_index:02d}.")
 
                 # Write the frame multiple times as specified in the config
-                write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
+                write_frame(content_and_metadata_stream, frame_to_write)
                 next_frame_to_write += 1
                 if len(heap) % 10 == 0:
                     gc.collect()
@@ -75,7 +75,7 @@ def process_video_frames(file_path, config, debug):
     for next_frame_to_write, frame_to_write, content_type in (
             encode_frame(frame_args) for frame_args in generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
-        write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
+        write_frame(content_and_metadata_stream, frame_to_write)
     gc.collect()
 
     # Release everything if the job is finished
@@ -88,7 +88,7 @@ def process_video_frames(file_path, config, debug):
     for next_frame_to_write, frame_to_write, content_type in (
             encode_frame(frame_args) for frame_args in generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
-        write_frame_repeatedly(content_and_metadata_stream, frame_to_write, content_type, config)
+        write_frame(content_and_metadata_stream, frame_to_write)
     gc.collect()
 
     # Release everything if the job is finished
