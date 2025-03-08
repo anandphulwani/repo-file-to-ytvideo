@@ -4,6 +4,7 @@ import sys
 import json
 import cv2
 import heapq
+import shutil
 from multiprocessing import Pool, cpu_count
 from libs.config_loader import load_config
 from libs.content_type import ContentType
@@ -34,6 +35,8 @@ def process_video_frames(file_path, config, debug):
         print(f"Output directory name is empty. Please specify a valid filename for the input file: {file_path}")
         sys.exit(1)
     output_dir = path.join("storage", "output", output_dir)
+    if path.exists(output_dir):
+        shutil.rmtree(output_dir)
     makedirs(output_dir, exist_ok=True)
     print(f"Output directory created at: {output_dir}")
 
