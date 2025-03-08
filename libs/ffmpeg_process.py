@@ -16,15 +16,18 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
                          framerate=config['output_fps'],
                          format='rawvideo',
                          pix_fmt='bgr24',
-                         s=f'{config["frame_width"]}x{config["frame_height"]}').output(content_output_path,
-                                                                                       vcodec='libx264',
-                                                                                       pix_fmt='yuv420p',
-                                                                                       b='2000k',
-                                                                                       crf=23,
-                                                                                       bufsize='1024k').global_args(
-                                                                                           '-loglevel', 'error').run_async(pipe_stdin=True,
-                                                                                                   pipe_stdout=subprocess.DEVNULL,
-                                                                                                   pipe_stderr=subprocess.DEVNULL))
+                         s=f'{config["frame_width"]}x{config["frame_height"]}')
+            #
+            .output(content_output_path,
+                    vcodec='libx264',
+                    pix_fmt='yuv420p',
+                    b='2000k',
+                    crf=23,
+                    bufsize='1024k')
+            #
+            .global_args('-loglevel', 'error')
+            #
+            .run_async(pipe_stdin=True, pipe_stdout=subprocess.DEVNULL, pipe_stderr=subprocess.DEVNULL))
 
 
 def close_ffmpeg_process(ffmpeg_process, content_type, segment_idx=None):
