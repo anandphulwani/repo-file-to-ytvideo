@@ -13,7 +13,7 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
     elif content_type == ContentType.DATACONTENT:
         content_output_path = path.join(output_dir, f'content_part{segment_idx:02d}.mp4')
     return (ffmpeg.input('pipe:',
-                         framerate=config['output_fps'],
+                         framerate=f'{config["output_fps"]}/{config["total_frames_repetition"][content_type.value]}',
                          format='rawvideo',
                          pix_fmt='bgr24',
                          s=f'{config["frame_width"]}x{config["frame_height"]}')
@@ -23,7 +23,8 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
                     pix_fmt='yuv420p',
                     b='2000k',
                     crf=23,
-                    bufsize='1024k')
+                    bufsize='1024k',
+                    r=f'{config["output_fps"]}')
             #
             .global_args('-loglevel', 'error')
             #
