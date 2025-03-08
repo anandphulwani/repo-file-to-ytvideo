@@ -30,6 +30,9 @@ def process_video_frames(file_path, config, debug):
 
     # Create output directory based on input file name
     output_dir = path.basename(file_path) + config['output_video_suffix']
+    if not output_dir:
+        print(f"Output directory name is empty. Please specify a valid filename for the input file: {file_path}")
+        sys.exit(1)
     output_dir = path.join("storage", "output", output_dir)
     makedirs(output_dir, exist_ok=True)
     print(f"Output directory created at: {output_dir}")
