@@ -63,21 +63,21 @@ def process_video_frames(file_path, config, debug):
         result_iterator = pool.imap(encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug))
 
         for next_frame_to_write, frame_to_write, content_type in result_iterator:
-                should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
-                if should_start_new_segment:
-                    content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
-                                                                       f"{segment_index:02d}") if content_and_metadata_stream else None
+            should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
+            if should_start_new_segment:
+                content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
+                                                                   f"{segment_index:02d}") if content_and_metadata_stream else None
 
-                    # Determine parameters for create_ffmpeg_process
-                    segment_index = segment_index + 1 if should_start_new_segment else segment_index
-                    content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.DATACONTENT)
-                    print(f"Started FFmpeg process for content segment {segment_index:02d}.")
+                # Determine parameters for create_ffmpeg_process
+                segment_index = segment_index + 1 if should_start_new_segment else segment_index
+                content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.DATACONTENT)
+                print(f"Started FFmpeg process for content segment {segment_index:02d}.")
 
-                # Write the frame multiple times as specified in the config
-                write_frame(content_and_metadata_stream, frame_to_write)
-                next_frame_to_write += 1
-                if next_frame_to_write % 1000 == 0:
-                    gc.collect()
+            # Write the frame multiple times as specified in the config
+            write_frame(content_and_metadata_stream, frame_to_write)
+            next_frame_to_write += 1
+            if next_frame_to_write % 1000 == 0:
+                gc.collect()
         gc.collect()
 
     content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
