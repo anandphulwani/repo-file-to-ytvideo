@@ -1,4 +1,4 @@
-def generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug, start_index=0, frame_step=1):
+def generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug, start_index=0, frame_step=1):
     frame_index = 0
     while True:
         ret, frame = cap.read()
