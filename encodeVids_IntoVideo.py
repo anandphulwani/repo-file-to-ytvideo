@@ -3,7 +3,6 @@ from os import path, makedirs
 import sys
 import json
 import cv2
-import heapq
 import shutil
 import threading
 from multiprocessing import Pool, cpu_count
@@ -60,15 +59,10 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = None
 
     next_frame_to_write = 0
-    heap = []
-
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap(encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug))
 
-        for result in result_iterator:
-            heapq.heappush(heap, result)
-            while heap and heap[0][0] == next_frame_to_write:
-                _, frame_to_write, content_type = heapq.heappop(heap)
+        for next_frame_to_write, frame_to_write, content_type in result_iterator:
                 should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
                 if should_start_new_segment:
                     content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
@@ -82,7 +76,7 @@ def process_video_frames(file_path, config, debug):
                 # Write the frame multiple times as specified in the config
                 write_frame(content_and_metadata_stream, frame_to_write)
                 next_frame_to_write += 1
-                if len(heap) % 10 == 0:
+                if next_frame_to_write % 1000 == 0:
                     gc.collect()
         gc.collect()
 
