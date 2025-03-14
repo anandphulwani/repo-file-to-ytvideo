@@ -5,7 +5,9 @@ import json
 import cv2
 import heapq
 import shutil
+import threading
 from multiprocessing import Pool, cpu_count
+from queue import Queue
 from libs.config_loader import load_config
 from libs.content_type import ContentType
 from libs.FileToEncodedData import FileToEncodedData
@@ -15,6 +17,7 @@ from libs.generate_frame_args import generate_frame_args
 from libs.check_video_file import check_video_file
 from libs.encode_frame import encode_frame
 from libs.write_frame import write_frame
+from libs.background_reader import background_reader
 
 config = load_config('config.ini')
 
@@ -39,6 +42,17 @@ def process_video_frames(file_path, config, debug):
         shutil.rmtree(output_dir)
     makedirs(output_dir, exist_ok=True)
     print(f"Output directory created at: {output_dir}")
+
+    # Start the background-reader thread with a queue of maxsize=90
+    frame_queue = Queue(maxsize=14 * 4)
+    stop_event = threading.Event()
+
+    reader_thread = threading.Thread(
+        target=background_reader,
+        args=(cap, frame_queue, stop_event),
+        daemon=True  # optionally make it a daemon if you want auto-stop
+    )
+    reader_thread.start()
 
     # Initialize FFmpeg process for content segments
     segment_index = 0
@@ -98,6 +112,8 @@ def process_video_frames(file_path, config, debug):
     gc.collect()
 
     # Release everything if the job is finished
+    stop_event.set()
+    reader_thread.join()
     cap.release()
     content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.PREMETADATA, None)
     print("Modification is done.")
