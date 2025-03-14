@@ -63,7 +63,7 @@ def process_video_frames(file_path, config, debug):
     heap = []
 
     with Pool(cpu_count()) as pool:
-        result_iterator = pool.imap_unordered(encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug))
+        result_iterator = pool.imap(encode_frame, generate_frame_args(cap, config, frame_data_iter, encoding_color_map, debug))
 
         for result in result_iterator:
             heapq.heappush(heap, result)
