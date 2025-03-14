@@ -86,8 +86,8 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.METADATA)
     print(f"Started FFmpeg process for metadata segment.")
 
-    for frame_to_write in (
-            encode_frame(frame_args) for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
+    for frame_to_write in (encode_frame(frame_args)
+                           for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
         write_frame(content_and_metadata_stream, frame_to_write)
     gc.collect()
@@ -99,8 +99,8 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.PREMETADATA)
     print(f"Started FFmpeg process for pre_metadata segment.")
 
-    for frame_to_write in (
-            encode_frame(frame_args) for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
+    for frame_to_write in (encode_frame(frame_args)
+                           for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
         write_frame(content_and_metadata_stream, frame_to_write)
     gc.collect()
