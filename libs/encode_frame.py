@@ -88,4 +88,4 @@ def encode_frame(args):
 
     cv2.imwrite(path.join("storage", "output", f"frame_{content_type}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"),
                 frame) if debug else None
-    return (frame_index, frame, content_type)
+    return frame
