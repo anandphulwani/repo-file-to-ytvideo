@@ -59,6 +59,8 @@ def load_config(filename):
                 config_dict[key] = False
             else:
                 raise ValueError(f"Invalid boolean value for '{key}': {value}")
+        elif key.startswith('ram_threshold_'):
+            config_dict[key] = eval(value, {}, {})
         else:
             config_dict[key] = convert_to_appropriate_type(value)
 
