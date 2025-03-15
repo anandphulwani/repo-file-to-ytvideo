@@ -29,7 +29,7 @@ bgr_map = build_bgr_map()
 
 
 def encode_frame(args):
-    frame, config, encoding_color_map, frame_data, frame_index, content_type, debug = args
+    frames_batch, config, encoding_color_map, frame_data, frame_index, content_type, debug = args
 
     # Early-return or raise instead of sys.exit
     if not frame_data:
@@ -76,7 +76,9 @@ def encode_frame(args):
     # ------------------------------------------------------
     # Apply block_roi and paint only the "padding" region in white
     # ------------------------------------------------------
+    modified_frames = []
 
+    for frame in frames_batch:
     # 1) Paint the "padding" area in white on all four sides
     frame[margin:start_y, margin:frame_width - margin] = 255
     frame[y_end:frame_height - margin, margin:frame_width - margin] = 255
@@ -87,5 +89,8 @@ def encode_frame(args):
     frame[start_y:y_end, start_x:x_end] = block_roi
 
     cv2.imwrite(path.join("storage", "output", f"frame_{content_type}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"),
-                frame) if debug else None
-    return frame
+                frame) if debug and not modified_frames else None
+
+    modified_frames.append(frame)
+
+    return modified_frames
