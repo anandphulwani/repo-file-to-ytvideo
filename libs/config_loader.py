@@ -24,7 +24,6 @@ def parse_list(value):
     Parse a string representation of a list into an actual Python list.
     Assumes the list is in JSON format (e.g., "[1, 2, 3]").
     """
-    value = value.split('#')[0].strip()
     try:
         parsed = json.loads(value)
         if isinstance(parsed, list):
@@ -44,6 +43,10 @@ def load_config(filename):
 
     config_dict = {}
     for key, value in config_items:
+        # Parse the list from JSON format
+        config_dict[key] = value.split('#')[0].strip()
+
+    for key, value in config_dict.items():
         if key in ['total_frames_repetition', 'pick_frame_to_read', 'data_box_size_step']:
             # Parse the list from JSON format
             config_dict[key] = parse_list(value)
