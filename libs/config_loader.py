@@ -53,7 +53,7 @@ def load_config(filename):
             # Ensure all elements are integers
             if not all(isinstance(item, int) for item in config_dict[key]):
                 raise ValueError(f"All elements in '{key}' must be integers.")
-        elif key == 'allow_byte_to_be_split_between_frames':
+        elif key in ['allow_byte_to_be_split_between_frames', 'use_same_bgr_frame_for_repetetion']:
             # Parse and validate boolean value
             lower_value = value.lower().strip()
             if lower_value in ['true', 'yes', '1']:
