@@ -17,10 +17,10 @@ def generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map
             bgr_frames_count = 1 if config["use_same_bgr_frame_for_repetetion"] else config["total_frames_repetition"][content_type.value]
             frames_batch = []
             for _ in range(bgr_frames_count):
-            frame = frame_queue.get()
-            if frame is None:
-                break
-            frames_batch.append(frame)
+                frame = frame_queue.get()
+                if frame is None:
+                    break
+                frames_batch.append(frame)
 
             if not frames_batch:
                 break
