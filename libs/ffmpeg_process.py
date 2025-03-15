@@ -12,8 +12,9 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
         content_output_path = path.join(output_dir, f'metadata.mp4')
     elif content_type == ContentType.DATACONTENT:
         content_output_path = path.join(output_dir, f'content_part{segment_idx:02d}.mp4')
+    ffmpeg_input_framerate = f'{config['output_fps']}/{config['total_frames_repetition'][content_type.value]}' if config["use_same_bgr_frame_for_repetetion"] else f'{config["output_fps"]}'
     return (ffmpeg.input('pipe:',
-                         framerate=f'{config["output_fps"]}/{config["total_frames_repetition"][content_type.value]}',
+                         framerate=ffmpeg_input_framerate,
                          format='rawvideo',
                          pix_fmt='bgr24',
                          s=f'{config["frame_width"]}x{config["frame_height"]}')
