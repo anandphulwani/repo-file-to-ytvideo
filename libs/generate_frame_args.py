@@ -14,9 +14,11 @@ def generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map
             content_type, frame_data = next(frame_data_iter)
             if frame_data is None:
                 break
+            frames_batch = []
             frame = frame_queue.get()
             if frame is None:
                 break
-            yield (frame, config, encoding_color_map, frame_data, None, content_type, debug)
+            frames_batch.append(frame)
+            yield (frames_batch, config, encoding_color_map, frame_data, None, content_type, debug)
         except StopIteration:
             break
