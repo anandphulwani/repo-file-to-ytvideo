@@ -79,18 +79,18 @@ def encode_frame(args):
     modified_frames = []
 
     for frame in frames_batch:
-    # 1) Paint the "padding" area in white on all four sides
-    frame[margin:start_y, margin:frame_width - margin] = 255
-    frame[y_end:frame_height - margin, margin:frame_width - margin] = 255
-    frame[margin:frame_height - margin, margin:start_x] = 255
-    frame[margin:frame_height - margin, x_end:frame_width - margin] = 255
+        # 1) Paint the "padding" area in white on all four sides
+        frame[margin:start_y, margin:frame_width - margin] = 255
+        frame[y_end:frame_height - margin, margin:frame_width - margin] = 255
+        frame[margin:frame_height - margin, margin:start_x] = 255
+        frame[margin:frame_height - margin, x_end:frame_width - margin] = 255
 
-    # 2) Overwrite the inner data region
-    frame[start_y:y_end, start_x:x_end] = block_roi
+        # 2) Overwrite the inner data region
+        frame[start_y:y_end, start_x:x_end] = block_roi
 
-    cv2.imwrite(path.join("storage", "output", f"frame_{content_type}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"),
-                frame) if debug and not modified_frames else None
+        cv2.imwrite(path.join("storage", "output", f"frame_{content_type}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"),
+                    frame) if debug and not modified_frames else None
 
-    modified_frames.append(frame)
+        modified_frames.append(frame)
 
     return modified_frames
