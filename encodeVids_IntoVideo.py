@@ -15,7 +15,7 @@ from libs.merge_mp4_files_incremental import merge_mp4_files_incremental
 from libs.generate_frame_args import generate_frame_args
 from libs.check_video_file import check_video_file
 from libs.encode_frame import encode_frame
-from libs.write_frame import write_frame
+from libs.write_frames import write_frames
 from libs.background_reader import background_reader
 
 config = load_config('config.ini')
@@ -74,7 +74,7 @@ def process_video_frames(file_path, config, debug):
                 print(f"Started FFmpeg process for content segment {segment_index:02d}.")
 
             # Write the frame multiple times as specified in the config
-            write_frame(content_and_metadata_stream, frame_to_write)
+            write_frames(content_and_metadata_stream, frame_to_write)
             next_frame_to_write += 1
             if next_frame_to_write % 1000 == 0:
                 gc.collect()
@@ -89,7 +89,7 @@ def process_video_frames(file_path, config, debug):
     for frame_to_write in (encode_frame(frame_args)
                            for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
-        write_frame(content_and_metadata_stream, frame_to_write)
+        write_frames(content_and_metadata_stream, frame_to_write)
     gc.collect()
 
     # Release everything if the job is finished
@@ -102,7 +102,7 @@ def process_video_frames(file_path, config, debug):
     for frame_to_write in (encode_frame(frame_args)
                            for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
-        write_frame(content_and_metadata_stream, frame_to_write)
+        write_frames(content_and_metadata_stream, frame_to_write)
     gc.collect()
 
     # Release everything if the job is finished
