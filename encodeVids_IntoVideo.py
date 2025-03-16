@@ -58,12 +58,12 @@ def process_video_frames(file_path, config, debug):
 
     content_and_metadata_stream = None
 
-    next_frame_to_write = 0
+    frames_count = 0
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap(encode_frame, generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug))
 
         for frames_to_write in result_iterator:
-            should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
+            should_start_new_segment = frames_count % config['frames_per_content_part_file'] == 0
             if should_start_new_segment:
                 content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
                                                                    f"{segment_index:02d}") if content_and_metadata_stream else None
@@ -75,8 +75,8 @@ def process_video_frames(file_path, config, debug):
 
             # Write the frame multiple times as specified in the config
             write_frames(content_and_metadata_stream, frames_to_write)
-            next_frame_to_write += 1
-            if next_frame_to_write % 1000 == 0:
+            frames_count += 1
+            if frames_count % 1000 == 0:
                 gc.collect()
         gc.collect()
 
