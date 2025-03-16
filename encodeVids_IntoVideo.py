@@ -43,9 +43,11 @@ def process_video_frames(file_path, config, debug):
     frame_queue = Queue(maxsize=14 * 4)
     stop_event = threading.Event()
 
+    frame_start = 0
+    frame_step = 1
     reader_thread = threading.Thread(
         target=background_reader,
-        args=(cap, frame_queue, stop_event),
+        args=(cap, frame_queue, stop_event, frame_start, frame_step),
         daemon=True  # optionally make it a daemon if you want auto-stop
     )
     reader_thread.start()

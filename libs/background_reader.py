@@ -1,12 +1,15 @@
+import cv2
 import queue
 
 
-def background_reader(cap, frame_queue, stop_event):
+def background_reader(cap, frame_queue, stop_event, frame_start, frame_step):
     """
     Continuously reads frames from the given VideoCapture 'cap' and
     pushes them into 'frame_queue' (bounded to 'max_frames'). The 'stop_event'
     is used to stop reading before we exhaust the video if needed.
     """
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)  # Set the initial frame position
+    frame_idx = frame_start
     ret, frame = None, None
     while not stop_event.is_set():
         try:
@@ -16,6 +19,11 @@ def background_reader(cap, frame_queue, stop_event):
                 frame_queue.put(None, timeout=0.5)
                 break
             frame_queue.put(frame, timeout=0.5)
+
+            # Skip 'frame_step' frames
+            frame_idx += frame_step
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+
             ret, frame = None, None
         except queue.Full:
             pass
