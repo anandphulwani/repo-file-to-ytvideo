@@ -12,7 +12,12 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
         content_output_path = path.join(output_dir, f'metadata.mp4')
     elif content_type == ContentType.DATACONTENT:
         content_output_path = path.join(output_dir, f'content_part{segment_idx:02d}.mp4')
+    
     ffmpeg_input_framerate = f'{config['output_fps']}/{config['total_frames_repetition'][content_type.value]}' if config["use_same_bgr_frame_for_repetetion"] else f'{config["output_fps"]}'
+    
+    preset_dict = { 1: 'veryslow', 2: 'slower', 3: 'slow', 4: 'medium', 5: 'fast', 6: 'faster', 7: 'veryfast', 8: 'superfast', 9: 'ultrafast'}
+    preset = preset_dict.get(config['encoding_speed'], "medium")
+    
     return (ffmpeg.input('pipe:',
                          framerate=ffmpeg_input_framerate,
                          format='rawvideo',
@@ -24,6 +29,8 @@ def create_ffmpeg_process(output_dir, config, segment_idx, content_type):
                     pix_fmt='yuv420p',
                     b='2000k',
                     crf=23,
+                    preset=preset,
+                    tune='zerolatency',
                     bufsize='1024k',
                     r=f'{config["output_fps"]}')
             #
