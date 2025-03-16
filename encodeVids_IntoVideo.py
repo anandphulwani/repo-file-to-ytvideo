@@ -59,25 +59,30 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = None
 
     frames_count = 0
+    last_gc_count = 0
+    last_segment_count = 0
+
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap(encode_frame, generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug))
 
         for frames_to_write in result_iterator:
-            should_start_new_segment = frames_count % config['frames_per_content_part_file'] == 0
-            if should_start_new_segment:
+            if frames_count == 0 or frames_count - last_segment_count >= config['frames_per_content_part_file']:
                 content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
                                                                    f"{segment_index:02d}") if content_and_metadata_stream else None
 
-                # Determine parameters for create_ffmpeg_process
-                segment_index = segment_index + 1 if should_start_new_segment else segment_index
+                segment_index += 1
                 content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.DATACONTENT)
                 print(f"Started FFmpeg process for content segment {segment_index:02d}.")
+                last_segment_count = frames_count  # Reset tracking for next segment start
 
-            # Write the frame multiple times as specified in the config
+            # Write the frames
             write_frames(content_and_metadata_stream, frames_to_write)
-            frames_count += 1
-            if frames_count % 1000 == 0:
+
+            # Roughly trigger garbage collection
+            if frames_count - last_gc_count >= 1000:
                 gc.collect()
+                last_gc_count = frames_count  # Reset tracking for next GC trigger
+            frames_count += len(frames_to_write)
         gc.collect()
 
     content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
