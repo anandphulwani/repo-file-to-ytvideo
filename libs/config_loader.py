@@ -112,6 +112,12 @@ def load_config(filename):
                 raise ValueError(f"'data_box_size_step' at index {idx} ({step}) "
                                  f"must be between 1 and 50 (inclusive).")
 
+    # Validation Rule 3:
+    if 'encoding_speed' in config_dict:
+        encoding_speed = config_dict['encoding_speed']
+        if not isinstance(encoding_speed, int) or not 1 <= encoding_speed <= 9:
+            raise ValueError("'encoding_speed' must be an integer value between 1 and 9 (inclusive).")
+
     config_dict['usable_width'] = []
     config_dict['usable_height'] = []
     config_dict['usable_databoxes_in_frame'] = []
