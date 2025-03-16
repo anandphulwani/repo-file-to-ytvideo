@@ -2,7 +2,7 @@ import time
 import psutil
 
 
-def generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug):
+def generate_frame_args(frame_queue, config, frame_data_iter, debug):
     while True:
         if psutil.virtual_memory().available < config['ram_threshold_trigger']:
             while psutil.virtual_memory().available < config['ram_threshold_trigger']:
@@ -24,6 +24,6 @@ def generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map
 
             if not frames_batch:
                 break
-            yield (frames_batch, config, encoding_color_map, frame_data, None, content_type, debug)
+            yield (frames_batch, config, frame_data, content_type, debug)
         except StopIteration:
             break

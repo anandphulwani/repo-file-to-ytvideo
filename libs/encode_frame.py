@@ -29,11 +29,10 @@ bgr_map = build_bgr_map()
 
 
 def encode_frame(args):
-    frames_batch, config, encoding_color_map, frame_data, frame_index, content_type, debug = args
+    frames_batch, config, frame_data, content_type, debug = args
 
     # Early-return or raise instead of sys.exit
     if not frame_data:
-        print(f'frame_indexes: {frame_index}, frame_data is empty.')
         raise ValueError("No frame data!")
 
     data_box_size_step = config['data_box_size_step'][content_type.value]

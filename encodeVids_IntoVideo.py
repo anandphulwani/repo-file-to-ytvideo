@@ -22,9 +22,6 @@ config = load_config('config.ini')
 
 
 def process_video_frames(file_path, config, debug):
-    with open(config['encoding_map_path'], 'r') as file:
-        encoding_color_map = json.load(file)
-
     frame_data_iter = FileToEncodedData(config, file_path, debug)
     print('Encoding done.')
 
@@ -63,7 +60,7 @@ def process_video_frames(file_path, config, debug):
     last_segment_count = 0
 
     with Pool(cpu_count()) as pool:
-        result_iterator = pool.imap(encode_frame, generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug))
+        result_iterator = pool.imap(encode_frame, generate_frame_args(frame_queue, config, frame_data_iter, debug))
 
         for frames_to_write in result_iterator:
             if frames_count == 0 or frames_count - last_segment_count >= config['frames_per_content_part_file']:
@@ -91,8 +88,7 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.METADATA)
     print(f"Started FFmpeg process for metadata segment.")
 
-    for frames_to_write in (encode_frame(frame_args)
-                            for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
+    for frames_to_write in (encode_frame(frame_args) for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, debug)):
         # Write the frame multiple times as specified in the config
         write_frames(content_and_metadata_stream, frames_to_write)
     gc.collect()
@@ -104,8 +100,7 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.PREMETADATA)
     print(f"Started FFmpeg process for pre_metadata segment.")
 
-    for frames_to_write in (encode_frame(frame_args)
-                            for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
+    for frames_to_write in (encode_frame(frame_args) for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, debug)):
         # Write the frame multiple times as specified in the config
         write_frames(content_and_metadata_stream, frames_to_write)
     gc.collect()
