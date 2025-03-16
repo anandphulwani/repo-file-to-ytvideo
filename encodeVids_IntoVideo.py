@@ -62,7 +62,7 @@ def process_video_frames(file_path, config, debug):
     with Pool(cpu_count()) as pool:
         result_iterator = pool.imap(encode_frame, generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug))
 
-        for frame_to_write in result_iterator:
+        for frames_to_write in result_iterator:
             should_start_new_segment = next_frame_to_write % config['frames_per_content_part_file'] == 0
             if should_start_new_segment:
                 content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
@@ -74,7 +74,7 @@ def process_video_frames(file_path, config, debug):
                 print(f"Started FFmpeg process for content segment {segment_index:02d}.")
 
             # Write the frame multiple times as specified in the config
-            write_frames(content_and_metadata_stream, frame_to_write)
+            write_frames(content_and_metadata_stream, frames_to_write)
             next_frame_to_write += 1
             if next_frame_to_write % 1000 == 0:
                 gc.collect()
@@ -86,10 +86,10 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.METADATA)
     print(f"Started FFmpeg process for metadata segment.")
 
-    for frame_to_write in (encode_frame(frame_args)
-                           for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
+    for frames_to_write in (encode_frame(frame_args)
+                            for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
-        write_frames(content_and_metadata_stream, frame_to_write)
+        write_frames(content_and_metadata_stream, frames_to_write)
     gc.collect()
 
     # Release everything if the job is finished
@@ -99,10 +99,10 @@ def process_video_frames(file_path, config, debug):
     content_and_metadata_stream = create_ffmpeg_process(output_dir, config, segment_index, ContentType.PREMETADATA)
     print(f"Started FFmpeg process for pre_metadata segment.")
 
-    for frame_to_write in (encode_frame(frame_args)
-                           for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
+    for frames_to_write in (encode_frame(frame_args)
+                            for frame_args in generate_frame_args(frame_queue, config, frame_data_iter, encoding_color_map, debug)):
         # Write the frame multiple times as specified in the config
-        write_frames(content_and_metadata_stream, frame_to_write)
+        write_frames(content_and_metadata_stream, frames_to_write)
     gc.collect()
 
     # Release everything if the job is finished
