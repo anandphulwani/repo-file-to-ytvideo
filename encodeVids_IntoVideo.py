@@ -80,6 +80,7 @@ def process_video_frames(file_path, config, debug):
                 gc.collect()
                 last_gc_count = frames_count  # Reset tracking for next GC trigger
             frames_count += len(frames_to_write)
+            del frames_to_write
         gc.collect()
 
     content_and_metadata_stream = close_ffmpeg_process(content_and_metadata_stream, ContentType.DATACONTENT,
