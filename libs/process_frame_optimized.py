@@ -60,7 +60,7 @@ def process_frame_optimized(args):
     """
     global carry_over_chunk
 
-    config_params, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
+    config_params, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed = args
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
@@ -75,9 +75,9 @@ def process_frame_optimized(args):
     encoding_color_map_values_lower_bounds = config_params["encoding_color_map_values_lower_bounds"]
     encoding_color_map_values_upper_bounds = config_params["encoding_color_map_values_upper_bounds"]
 
-    frames_so_far = ((frame_index - 1 - metadata_frames) // frame_step)
-    data_index = frames_so_far * databoxes_per_frame
     is_last_frame = (frame_index + 1 >= (num_frames - frame_step + 1))
+    frames_consumed = ((frame_index - 1 - frames_traversed) // frame_step) if is_last_frame else 0
+    data_index = frames_consumed * databoxes_per_frame if is_last_frame else 0
 
     # Ensure dtype=uint8
     if frame_to_decode.dtype != np.uint8:
