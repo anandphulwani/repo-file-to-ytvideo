@@ -11,7 +11,7 @@ carry_over_chunk = {}
 def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int, usable_w: int, usable_h: int, databoxes_per_frame: int,
                              frame_to_decode: np.ndarray, encoding_color_map_keys: np.ndarray, encoding_color_map_values: np.ndarray,
                              encoding_color_map_values_lower_bounds: np.ndarray, encoding_color_map_values_upper_bounds: np.ndarray, frame_index: int,
-                             total_baseN_length: int, data_index_start: int, is_last_frame: bool):
+                             total_baseN_length: int, data_index: int, is_last_frame: bool):
     """
     Extract baseN data from `frame_to_decode` (BGR, shape=(H,W,3)) according to 
     your black/white fallback logic, scanning from (start_width, start_height)
@@ -24,7 +24,6 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
     baseN_data_buffer = np.empty(databoxes_per_frame, dtype=np.uint8)
 
     databoxes_used = 0
-    data_index = data_index_start
 
     # We'll read BGR from frame_to_decode[y, x] => (b, g, r).
     for y in range(start_height, start_height + usable_h, box_step):
@@ -77,7 +76,7 @@ def process_frame_optimized(args):
     encoding_color_map_values_upper_bounds = config_params["encoding_color_map_values_upper_bounds"]
 
     frames_so_far = ((frame_index - 1 - metadata_frames) // frame_step)
-    data_index_start = frames_so_far * databoxes_per_frame
+    data_index = frames_so_far * databoxes_per_frame
     is_last_frame = (frame_index + 1 >= (num_frames - frame_step + 1))
 
     # Ensure dtype=uint8
@@ -97,7 +96,7 @@ def process_frame_optimized(args):
                                                      encoding_color_map_values_upper_bounds=encoding_color_map_values_upper_bounds,
                                                      frame_index=frame_index,
                                                      total_baseN_length=total_baseN_length,
-                                                     data_index_start=data_index_start,
+                                                     data_index=data_index,
                                                      is_last_frame=is_last_frame)
 
     # Convert all ASCII codes to character values first
