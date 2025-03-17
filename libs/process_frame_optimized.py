@@ -10,7 +10,7 @@ carry_over_chunk = {}
 @numba.njit
 def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int, usable_w: int, usable_h: int, databoxes_per_frame: int,
                              frame_to_decode: np.ndarray, encoding_color_map_keys: np.ndarray, encoding_color_map_values: np.ndarray,
-                             encoding_color_map_values_lower_bounds: np.ndarray, encoding_color_map_values_upper_bounds: np.ndarray, frame_index: int,
+                             encoding_color_map_values_lower_bounds: np.ndarray, encoding_color_map_values_upper_bounds: np.ndarray,
                              total_baseN_length: int, data_index: int, is_last_frame: bool):
     """
     Extract baseN data from `frame_to_decode` (BGR, shape=(H,W,3)) according to 
@@ -83,21 +83,9 @@ def process_frame_optimized(args):
     if frame_to_decode.dtype != np.uint8:
         frame_to_decode = frame_to_decode.astype(np.uint8)
 
-    extracted_baseN_ascii = extract_baseN_data_numba(start_height=start_height,
-                                                     start_width=start_width,
-                                                     box_step=box_step,
-                                                     usable_w=usable_w,
-                                                     usable_h=usable_h,
-                                                     databoxes_per_frame=databoxes_per_frame,
-                                                     frame_to_decode=frame_to_decode,
-                                                     encoding_color_map_keys=encoding_color_map_keys,
-                                                     encoding_color_map_values=encoding_color_map_values,
-                                                     encoding_color_map_values_lower_bounds=encoding_color_map_values_lower_bounds,
-                                                     encoding_color_map_values_upper_bounds=encoding_color_map_values_upper_bounds,
-                                                     frame_index=frame_index,
-                                                     total_baseN_length=total_baseN_length,
-                                                     data_index=data_index,
-                                                     is_last_frame=is_last_frame)
+    extracted_baseN_ascii = extract_baseN_data_numba(start_height, start_width, box_step, usable_w, usable_h, databoxes_per_frame, frame_to_decode,
+                                                     encoding_color_map_keys, encoding_color_map_values, encoding_color_map_values_lower_bounds,
+                                                     encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)
 
     # Convert all ASCII codes to character values first
     extracted_baseN_values = "".join(chr(c) for c in extracted_baseN_ascii)
