@@ -5,7 +5,7 @@ def produce_tasks(frame_queue, stop_event, config_params, frame_step, total_base
     """
     Takes items from the frame_queue (pushed by the reader thread),
     and yields them in the format that process_frame_optimized(...) expects:
-       (config_params, frame_bgr, frame_index, frame_step, 
+       (config_params, frame_to_decode, frame_index, frame_step, 
         total_baseN_length, num_frames, metadata_frames)
     """
     while not stop_event.is_set():
@@ -13,7 +13,7 @@ def produce_tasks(frame_queue, stop_event, config_params, frame_step, total_base
         if item is None:
             # End of stream
             break
-        (frame_index, frame_bgr) = item
+        (frame_index, frame_to_decode) = item
 
         # Build the tuple for your worker function:
-        yield (config_params, frame_bgr, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames)
+        yield (config_params, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames)

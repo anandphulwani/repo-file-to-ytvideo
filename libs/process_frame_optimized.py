@@ -9,11 +9,11 @@ carry_over_chunk = {}
 
 @numba.njit
 def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int, usable_w: int, usable_h: int, databoxes_per_frame: int,
-                             frame: np.ndarray, encoding_color_map_keys: np.ndarray, encoding_color_map_values: np.ndarray,
+                             frame_to_decode: np.ndarray, encoding_color_map_keys: np.ndarray, encoding_color_map_values: np.ndarray,
                              encoding_color_map_values_lower_bounds: np.ndarray, encoding_color_map_values_upper_bounds: np.ndarray, frame_index: int,
                              total_baseN_length: int, data_index_start: int, is_last_frame: bool):
     """
-    Extract baseN data from `frame` (BGR, shape=(H,W,3)) according to 
+    Extract baseN data from `frame_to_decode` (BGR, shape=(H,W,3)) according to 
     your black/white fallback logic, scanning from (start_width, start_height)
     to (start_width+usable_w, start_height+usable_h) in steps of box_step.
 
@@ -26,7 +26,7 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
     databoxes_used = 0
     data_index = data_index_start
 
-    # We'll read BGR from frame[y, x] => (b, g, r).
+    # We'll read BGR from frame_to_decode[y, x] => (b, g, r).
     for y in range(start_height, start_height + usable_h, box_step):
         for x in range(start_width, start_width + usable_w, box_step):
             if databoxes_used >= databoxes_per_frame:
@@ -34,7 +34,7 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
             if is_last_frame and data_index >= total_baseN_length:
                 break
 
-            nearest_key = determine_color_key(frame, x, y, box_step, encoding_color_map_keys, encoding_color_map_values,
+            nearest_key = determine_color_key(frame_to_decode, x, y, box_step, encoding_color_map_keys, encoding_color_map_values,
                                               encoding_color_map_values_lower_bounds, encoding_color_map_values_upper_bounds)
 
             baseN_data_buffer[databoxes_used] = nearest_key
@@ -61,7 +61,7 @@ def process_frame_optimized(args):
     """
     global carry_over_chunk
 
-    config_params, frame_bgr, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
+    config_params, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, metadata_frames = args
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
@@ -81,8 +81,8 @@ def process_frame_optimized(args):
     is_last_frame = (frame_index + 1 >= (num_frames - frame_step + 1))
 
     # Ensure dtype=uint8
-    if frame_bgr.dtype != np.uint8:
-        frame_bgr = frame_bgr.astype(np.uint8)
+    if frame_to_decode.dtype != np.uint8:
+        frame_to_decode = frame_to_decode.astype(np.uint8)
 
     extracted_baseN_ascii = extract_baseN_data_numba(start_height=start_height,
                                                      start_width=start_width,
@@ -90,7 +90,7 @@ def process_frame_optimized(args):
                                                      usable_w=usable_w,
                                                      usable_h=usable_h,
                                                      databoxes_per_frame=databoxes_per_frame,
-                                                     frame=frame_bgr,
+                                                     frame_to_decode=frame_to_decode,
                                                      encoding_color_map_keys=encoding_color_map_keys,
                                                      encoding_color_map_values=encoding_color_map_values,
                                                      encoding_color_map_values_lower_bounds=encoding_color_map_values_lower_bounds,
