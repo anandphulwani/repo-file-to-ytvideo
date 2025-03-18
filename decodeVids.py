@@ -39,25 +39,6 @@ def process_images(video_path, debug=False):
     end_index = num_frames - 1
     total_baseN_length = file_metadata.metadata["total_baseN_length"]
 
-    config_params = {
-        "start_height": config["start_height"],
-        "start_width": config["start_width"],
-        "box_step": config["data_box_size_step"][ContentType.DATACONTENT.value],
-        "usable_w": config["usable_width"][ContentType.DATACONTENT.value],
-        "usable_h": config["usable_height"][ContentType.DATACONTENT.value],
-        "databoxes_per_frame": config["usable_databoxes_in_frame"][ContentType.DATACONTENT.value],
-        "encoding_base": config["encoding_base"],
-        "encoding_chunk_size": config["encoding_chunk_size"],
-        "decoding_function": config["decoding_function"],
-        "encoding_color_map_keys": config["encoding_color_map_keys"],
-        "encoding_color_map_values": config["encoding_color_map_values"],
-        "encoding_color_map_values_lower_bounds": config["encoding_color_map_values_lower_bounds"],
-        "encoding_color_map_values_upper_bounds": config["encoding_color_map_values_upper_bounds"],
-        "premetadata_metadata_main_delimiter": config['premetadata_metadata_main_delimiter'],
-        "premetadata_metadata_sub_delimiter": config['premetadata_metadata_sub_delimiter'],
-        "length_of_digits_to_represent_size": config['length_of_digits_to_represent_size']
-    }
-
     #---------------------------------------------------------------------
     # B) PREP FOR WRITING & SHA1
     #---------------------------------------------------------------------
