@@ -95,21 +95,21 @@ def process_frame_optimized(args):
 
     # Use `extracted_baseN_values` instead of `extracted_baseN_ascii`
     output_data = []
-    i = 0
+    processed_baseN_values_index = 0
     extracted_baseN_values_len = len(extracted_baseN_values)
 
     # Carry over partial chunk from the previous frame as bytes
     previous_chunk = carry_over_chunk.get(frame_index - 1, "")
 
-    while i < extracted_baseN_values_len:
-        chunk_end = i + encoding_chunk_size
+    while processed_baseN_values_index < extracted_baseN_values_len:
+        chunk_end = processed_baseN_values_index + encoding_chunk_size
         if chunk_end > extracted_baseN_values_len:
             # Store remaining partial chunk for the next frame
-            carry_over_chunk[frame_index] = extracted_baseN_values[i:extracted_baseN_values_len]
+            carry_over_chunk[frame_index] = extracted_baseN_values[processed_baseN_values_index:extracted_baseN_values_len]
             break
 
         # Convert the chunk into a string (not bytes) and prepend any previous string chunk
-        chunk_bytes = previous_chunk.encode("utf-8") + extracted_baseN_values[i:chunk_end].encode("utf-8")
+        chunk_bytes = previous_chunk.encode("utf-8") + extracted_baseN_values[processed_baseN_values_index:chunk_end].encode("utf-8")
         previous_chunk = ""  # reset since we've now consumed it
 
         try:
@@ -120,5 +120,5 @@ def process_frame_optimized(args):
             print(f"Decoding error: chunk_bytes={chunk_bytes} | {e}")
             sys.exit(1)
 
-        i = chunk_end
+        processed_baseN_values_index = chunk_end
     return (frame_index, output_data)
