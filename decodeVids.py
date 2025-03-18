@@ -57,6 +57,9 @@ def process_images(video_path, encoding_map_path, debug=False):
         "encoding_color_map_values": config["encoding_color_map_values"],
         "encoding_color_map_values_lower_bounds": config["encoding_color_map_values_lower_bounds"],
         "encoding_color_map_values_upper_bounds": config["encoding_color_map_values_upper_bounds"],
+        "premetadata_metadata_main_delimiter": config['premetadata_metadata_main_delimiter'],
+        "premetadata_metadata_sub_delimiter": config['premetadata_metadata_sub_delimiter'],
+        "length_of_digits_to_represent_size": config['length_of_digits_to_represent_size']
     }
 
     #---------------------------------------------------------------------

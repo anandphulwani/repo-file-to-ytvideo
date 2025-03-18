@@ -74,6 +74,9 @@ def process_frame_optimized(args):
     encoding_color_map_values = config_params["encoding_color_map_values"]
     encoding_color_map_values_lower_bounds = config_params["encoding_color_map_values_lower_bounds"]
     encoding_color_map_values_upper_bounds = config_params["encoding_color_map_values_upper_bounds"]
+    premetadata_metadata_main_delimiter = config_params["premetadata_metadata_main_delimiter"]
+    premetadata_metadata_sub_delimiter = config_params["premetadata_metadata_sub_delimiter"]
+    length_of_digits_to_represent_size = config_params["length_of_digits_to_represent_size"]
 
     is_last_frame = (frame_index + 1 >= (num_frames - frame_step + 1))
     frames_consumed = ((frame_index - 1 - frames_traversed) // frame_step) if is_last_frame else 0
