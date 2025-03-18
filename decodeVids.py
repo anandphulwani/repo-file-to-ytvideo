@@ -29,6 +29,36 @@ def process_images(video_path, debug=False):
     num_frames = count_frames(video_path)
     print(f"Number of frames: {num_frames}")
 
+    # Common parameters that do not depend on content type
+    common_config_params = {
+        "start_height": config["start_height"],
+        "start_width": config["start_width"],
+        "encoding_base": config["encoding_base"],
+        "encoding_chunk_size": config["encoding_chunk_size"],
+        "decoding_function": config["decoding_function"],
+        "encoding_color_map_keys": config["encoding_color_map_keys"],
+        "encoding_color_map_values": config["encoding_color_map_values"],
+        "encoding_color_map_values_lower_bounds": config["encoding_color_map_values_lower_bounds"],
+        "encoding_color_map_values_upper_bounds": config["encoding_color_map_values_upper_bounds"],
+        "premetadata_metadata_main_delimiter": config['premetadata_metadata_main_delimiter'],
+        "premetadata_metadata_sub_delimiter": config['premetadata_metadata_sub_delimiter'],
+        "length_of_digits_to_represent_size": config['length_of_digits_to_represent_size']
+    }
+
+    config_params = {}
+    content_types = ["PREMETADATA", "METADATA", "DATACONTENT"]
+    for content_type in content_types:
+        specific_config_params = {
+            "box_step": config["data_box_size_step"][ContentType[content_type].value],
+            "usable_w": config["usable_width"][ContentType[content_type].value],
+            "usable_h": config["usable_height"][ContentType[content_type].value],
+            "databoxes_per_frame": config["usable_databoxes_in_frame"][ContentType[content_type].value],
+            "pick_frame_to_read": config["pick_frame_to_read"][ContentType[content_type].value],
+            "total_frames_repetition": config["total_frames_repetition"][ContentType[content_type].value],
+        }
+
+        config_params[content_type] = {**common_config_params, **specific_config_params}
+
     metadata_frames, file_metadata = get_file_metadata(config, cap, encoding_color_map, num_frames, debug)
     cap.release()  # Close video file
     cv2.destroyAllWindows()
