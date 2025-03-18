@@ -117,7 +117,8 @@ def process_images(video_path, encoding_map_path, debug=False):
                       frame_step=frame_step,
                       total_baseN_length=total_baseN_length,
                       num_frames=num_frames,
-                      metadata_frames=metadata_frames))
+                      metadata_frames=metadata_frames,
+                      convert_return_output_data=None))
 
     # E) COLLECT RESULTS
     for result in result_iterator:

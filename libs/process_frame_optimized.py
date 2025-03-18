@@ -61,7 +61,7 @@ def process_frame_optimized(args):
     """
     global carry_over_chunk
 
-    config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed = args
+    config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed, convert_return_output_data = args
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
@@ -122,4 +122,7 @@ def process_frame_optimized(args):
             sys.exit(1)
 
         processed_baseN_values_index = chunk_end
+
+    if convert_return_output_data == "string":
+        output_data = ''.join(b.decode('utf-8') for b in output_data)
     return (frame_index, output_data)
