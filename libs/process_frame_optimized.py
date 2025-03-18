@@ -96,16 +96,16 @@ def process_frame_optimized(args):
     # Use `extracted_baseN_values` instead of `extracted_baseN_ascii`
     output_data = []
     i = 0
-    n = len(extracted_baseN_values)
+    extracted_baseN_values_len = len(extracted_baseN_values)
 
     # Carry over partial chunk from the previous frame as bytes
     previous_chunk = carry_over_chunk.get(frame_index - 1, "")
 
-    while i < n:
+    while i < extracted_baseN_values_len:
         chunk_end = i + encoding_chunk_size
-        if chunk_end > n:
+        if chunk_end > extracted_baseN_values_len:
             # Store remaining partial chunk for the next frame
-            carry_over_chunk[frame_index] = extracted_baseN_values[i:n]
+            carry_over_chunk[frame_index] = extracted_baseN_values[i:extracted_baseN_values_len]
             break
 
         # Convert the chunk into a string (not bytes) and prepend any previous string chunk
