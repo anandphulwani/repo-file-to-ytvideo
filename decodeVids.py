@@ -23,10 +23,7 @@ from libs.frame_reader_thread import frame_reader_thread
 config = load_config('config.ini')
 
 
-def process_images(video_path, encoding_map_path, debug=False):
-    with open(encoding_map_path, 'r') as file:
-        encoding_color_map = json.load(file)
-
+def process_images(video_path, debug=False):
     cap = cv2.VideoCapture(video_path)
     check_video_file(config, cap)
     num_frames = count_frames(video_path)
@@ -181,4 +178,4 @@ def process_images(video_path, encoding_map_path, debug=False):
 if __name__ == "__main__":
     video_url = input("Please enter the URL to the video file: ")
     downloadFromYT(video_url)
-    process_images(os.path.join("storage", "output", "Test03.iso.mp4"), config['encoding_map_path'])
+    process_images(os.path.join("storage", "output", "Test03.iso.mp4"))
