@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import numba
 from .determine_color_key import determine_color_key
+from .content_type import ContentType
 
 # Global dictionary to carry over partial chunks across frames
 carry_over_chunk = {}
@@ -60,7 +61,7 @@ def process_frame_optimized(args):
     """
     global carry_over_chunk
 
-    config_params, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed = args
+    config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed = args
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
