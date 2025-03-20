@@ -102,6 +102,7 @@ def process_frame_optimized(args):
     # Carry over partial chunk from the previous frame as bytes
     previous_chunk = carry_over_chunk.get(frame_index - 1, "")
 
+    baseN_data_counter = 0
     while processed_baseN_values_index < extracted_baseN_values_len:
         chunk_end = processed_baseN_values_index + encoding_chunk_size
         if chunk_end > extracted_baseN_values_len:
@@ -117,12 +118,33 @@ def process_frame_optimized(args):
             # decoding_function expects a string
             decoded_value = decoding_function(chunk_bytes)  # Already bytes
             output_data.append(decoded_value)
+
+            if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
+                if len(output_data
+                       ) == len(premetadata_metadata_main_delimiter) + length_of_digits_to_represent_size + len(premetadata_metadata_main_delimiter):
+                    output_data_string = ''.join(b.decode('utf-8') for b in output_data)
+                    if output_data_string.startswith(premetadata_metadata_main_delimiter) and output_data_string.endswith(
+                            premetadata_metadata_main_delimiter):
+                        parts = output_data_string.split(premetadata_metadata_main_delimiter, 2)
+                        if len(parts) == 3:
+                            try:
+                                total_baseN_length = int(parts[1])
+                            except ValueError:
+                                pass
+                    if total_baseN_length is None:
+                        print(f"Error extracting length for content type {content_type} from frame {frame_index}")
+                        sys.exit(1)
         except Exception as e:
             print(f"Decoding error: chunk_bytes={chunk_bytes} | {e}")
             sys.exit(1)
 
         processed_baseN_values_index = chunk_end
+        baseN_data_counter += 1
+        if total_baseN_length is not None and baseN_data_counter == total_baseN_length:
+            break
 
     if convert_return_output_data == "string":
         output_data = ''.join(b.decode('utf-8') for b in output_data)
-    return (frame_index, output_data)
+    elif convert_return_output_data == "bytearray":
+        output_data = bytearray(b''.join(output_data))
+    return (frame_index, output_data, total_baseN_length, len(output_data))
