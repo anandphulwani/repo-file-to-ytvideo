@@ -31,7 +31,7 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
         for x in range(start_width, start_width + usable_w, box_step):
             if databoxes_used >= databoxes_per_frame:
                 break
-            if is_last_frame and data_index >= total_baseN_length:
+            if is_last_frame and total_baseN_length is not None and data_index >= total_baseN_length:
                 break
 
             nearest_key = determine_color_key(frame_to_decode, x, y, box_step, encoding_color_map_keys, encoding_color_map_values,
@@ -45,7 +45,7 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
 
         if databoxes_used >= databoxes_per_frame:
             break
-        if is_last_frame and data_index >= total_baseN_length:
+        if is_last_frame and total_baseN_length is not None and data_index >= total_baseN_length:
             break
 
     # If not fully empty, that means the frame ended with partial baseN data
