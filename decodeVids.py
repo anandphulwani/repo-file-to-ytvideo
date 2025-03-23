@@ -59,7 +59,7 @@ def process_images(video_path, debug=False):
 
         config_params[content_type] = {**common_config_params, **specific_config_params}
 
-    metadata_frames, file_metadata = get_file_metadata(config, cap, encoding_color_map, num_frames, debug)
+    metadata_frames, file_metadata = get_file_metadata(config, cap, num_frames, debug)
     cap.release()  # Close video file
     cv2.destroyAllWindows()
 

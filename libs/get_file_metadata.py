@@ -11,7 +11,7 @@ from .determine_color_key import determine_color_key
 from .detect_base_from_json import get_length_in_base
 
 
-def read_frames(cap, config, content_type, encoding_color_map, start_frame_index, num_frames, data_expected_length=None, debug=False):
+def read_frames(cap, config, content_type, start_frame_index, num_frames, data_expected_length=None, debug=False):
     """Reads frames and extracts encoded data as per the encoding map's base."""
 
     baseN_data_buffer = ''
@@ -75,7 +75,7 @@ def check_metadata_valid_using_checksum(metadata_str):
     return True, actual_metadata
 
 
-def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=False):
+def read_metadata(cap, config, pm_obj, num_frames, debug=False):
     # 1st pass
     """
     MODE: Normal metadata
@@ -84,7 +84,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=Fal
     print(f"read_metadata: Init: Frames consumed before metadata: {frames_consumed}") if debug else None
 
     metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(
-        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["normal"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_normal = metadata_normal.encode()
     triplet_length = len(metadata_normal) // 3
@@ -119,7 +119,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=Fal
     """
     frames_consumed += metadata_normal_frames_consumed
     metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(
-        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["base64"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_base64 = base64.b64decode(metadata_base64).decode()
 
@@ -134,7 +134,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=Fal
     """
     frames_consumed += metadata_base64_frames_consumed
     metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(
-        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["rot13"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_rot13 = rot13_rot5(metadata_rot13)
 
@@ -149,7 +149,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=Fal
     """
     frames_consumed += metadata_rot13_frames_consumed
     metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(
-        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["reed_solomon"]["data_size"], config["encoding_bits_per_value"]), "bytearray", debug)
     # Decode using Reed-Solomon
     metadata_reed_solomon = RSCodec(int(pm_obj.sections["reed_solomon"]["rscodec_value"])).decode(metadata_reed_solomon)
@@ -167,7 +167,7 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=Fal
     """
     frames_consumed += metadata_reed_solomon_frames_consumed
     metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(
-        cap, config, ContentType.METADATA, encoding_color_map, frames_consumed, num_frames,
+        cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["zfec"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     # Decode using Zfec
     zfec_k, zfec_m = 3, 5  # Same values used for encoding
@@ -185,9 +185,9 @@ def read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug=Fal
         raise ValueError("Invalid metadata found in all metadata types.")
 
 
-def get_file_metadata(config, cap, encoding_color_map, num_frames, debug):
+def get_file_metadata(config, cap, num_frames, debug):
     # PREMETADATA
-    pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(cap, config, ContentType.PREMETADATA, encoding_color_map, 0,
+    pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(cap, config, ContentType.PREMETADATA, 0,
                                                                                 num_frames, None, "string", debug)
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
@@ -199,7 +199,7 @@ def get_file_metadata(config, cap, encoding_color_map, num_frames, debug):
     print("# ------------------------------------------") if debug else None
 
     # METADATA
-    metadata = read_metadata(cap, config, encoding_color_map, pm_obj, num_frames, debug)
+    metadata = read_metadata(cap, config, pm_obj, num_frames, debug)
     m_obj = Metadata()
     m_obj.parse(metadata)
     print("# ------------------------------------------") if debug else None
