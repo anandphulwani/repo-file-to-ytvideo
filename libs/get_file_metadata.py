@@ -180,7 +180,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
         raise ValueError("Invalid metadata found in all metadata types.")
 
 
-def get_file_metadata(config, cap, num_frames, debug):
+def get_file_metadata(config, cap, config_params_premetadata, config_params_metadata, num_frames, debug):
     # PREMETADATA
     pre_metadata, pre_metadata_frame_count = read_frames(cap, config, ContentType.PREMETADATA, 0, num_frames, None, "string", debug)
     pm_obj = PreMetadata()
