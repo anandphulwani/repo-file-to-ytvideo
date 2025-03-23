@@ -106,7 +106,6 @@ def process_images(video_path, debug=False):
     stream_decoded_file = open(f"{file_metadata.metadata['filename']}_decoded_stream.txt", "w") if debug else None
 
     # We'll track results in a min-heap so we can output in ascending order
-    heap = []
     next_frame_to_write = frame_start
 
     # We expect this many frames for DATACONTENT
@@ -114,7 +113,7 @@ def process_images(video_path, debug=False):
     pbar = tqdm(total=count_main_frames, desc="Decoding DATACONTENT")
 
     # Fire off the parallel tasks
-    result_iterator = pool.imap_unordered(
+    result_iterator = pool.imap(
         process_frame_optimized,
         produce_tasks(frame_queue=frame_queue,
                       stop_event=stop_event,
@@ -128,11 +127,7 @@ def process_images(video_path, debug=False):
 
     # E) COLLECT RESULTS
     for result in result_iterator:
-        # result is (frame_index, output_data)
-        heapq.heappush(heap, result)
-        # flush from the heap in ascending order
-        while heap and heap[0][0] == next_frame_to_write:
-            frame_index, output_data = heapq.heappop(heap)
+            frame_index, output_data = result[0], result[1]
 
             # Update SHA1 & debug checks
             for data_bytes in output_data:
