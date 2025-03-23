@@ -159,6 +159,7 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
                                                                                pm_obj.sections["reed_solomon"]["data_size"], "bytearray", debug)
 
     # Decode using Reed-Solomon
+    metadata_reed_solomon = base64.b64decode(metadata_reed_solomon)
     metadata_reed_solomon = RSCodec(int(pm_obj.sections["reed_solomon"]["rscodec_value"])).decode(metadata_reed_solomon)
     metadata_reed_solomon = metadata_reed_solomon[0] if isinstance(metadata_reed_solomon, tuple) else metadata_reed_solomon
     metadata_reed_solomon = metadata_reed_solomon.decode('utf-8', errors='ignore')
