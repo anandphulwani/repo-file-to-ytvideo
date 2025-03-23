@@ -29,8 +29,8 @@ def read_frames(cap, config, content_type, start_frame_index, num_frames, data_e
         # Set the video position to the desired frame
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         # Read the frame
-        _, frame = cap.read()
-        (data_expected_length, data_current_length, output_data, baseN_data_buffer) = process_frame(frame, config, content_type, encoding_color_map,
+        _, frame_to_decode = cap.read()
+        (data_expected_length, data_current_length, output_data, baseN_data_buffer) = process_frame(frame_to_decode, config, content_type, encoding_color_map,
                                                                                                     data_expected_length, data_current_length,
                                                                                                     output_data, baseN_data_buffer)
 
