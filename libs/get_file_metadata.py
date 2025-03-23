@@ -39,8 +39,8 @@ def read_frames(cap,
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         # Read the frame
         _, frame_to_decode = cap.read()
-        args = (frame_to_decode, config, content_type, encoding_color_map, total_baseN_length, data_current_length, output_data, baseN_data_buffer)
-        (total_baseN_length, data_current_length, output_data, baseN_data_buffer) = process_frame_optimized(args)
+        args = (config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, 0, convert_return_output_data)
+        (_, output_data, total_baseN_length, data_current_length) = process_frame_optimized(args)
 
         total_frames_consumed = frame_index + 1 - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
         # Break out of the loop once the full metadata has been read.
