@@ -197,6 +197,9 @@ def get_file_metadata(config, cap, config_params_premetadata, config_params_meta
     # PREMETADATA
     pre_metadata, pre_metadata_frame_count = read_frames(cap, config, config_params_premetadata, ContentType.PREMETADATA, 0, num_frames, None,
                                                          "string", debug)
+    chars_to_strip_from_pre_metadata = (len(config['premetadata_metadata_main_delimiter']) * 2) + config['length_of_digits_to_represent_size']
+    pre_metadata = pre_metadata[chars_to_strip_from_pre_metadata:]
+
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
     print("# ------------------------------------------") if debug else None
