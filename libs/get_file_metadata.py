@@ -11,7 +11,7 @@ from .determine_color_key import determine_color_key
 from .detect_base_from_json import get_length_in_base
 
 
-def read_frames(cap, config, content_type, start_frame_index, num_frames, data_expected_length=None, debug=False):
+def read_frames(cap, config, config_params, content_type, start_frame_index, num_frames, data_expected_length=None, debug=False):
     """Reads frames and extracts encoded data as per the encoding map's base."""
 
     baseN_data_buffer = ''
