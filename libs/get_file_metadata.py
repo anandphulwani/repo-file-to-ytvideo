@@ -9,6 +9,7 @@ from .Metadata import Metadata
 from .rot13_rot5 import rot13_rot5
 from .determine_color_key import determine_color_key
 from .detect_base_from_json import get_length_in_base
+from .process_frame_optimized import process_frame_optimized
 
 
 def read_frames(cap,
@@ -38,9 +39,8 @@ def read_frames(cap,
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         # Read the frame
         _, frame_to_decode = cap.read()
-        (total_baseN_length, data_current_length, output_data, baseN_data_buffer) = process_frame(frame_to_decode, config, content_type,
-                                                                                                  encoding_color_map, total_baseN_length,
-                                                                                                  data_current_length, output_data, baseN_data_buffer)
+        args = (frame_to_decode, config, content_type, encoding_color_map, total_baseN_length, data_current_length, output_data, baseN_data_buffer)
+        (total_baseN_length, data_current_length, output_data, baseN_data_buffer) = process_frame_optimized(args)
 
         total_frames_consumed = frame_index + 1 - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
         # Break out of the loop once the full metadata has been read.
