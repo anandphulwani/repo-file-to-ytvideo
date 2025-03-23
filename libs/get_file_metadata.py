@@ -11,7 +11,15 @@ from .determine_color_key import determine_color_key
 from .detect_base_from_json import get_length_in_base
 
 
-def read_frames(cap, config, config_params, content_type, start_frame_index, num_frames, total_baseN_length=None, convert_return_output_data=None, debug=False):
+def read_frames(cap,
+                config,
+                config_params,
+                content_type,
+                start_frame_index,
+                num_frames,
+                total_baseN_length=None,
+                convert_return_output_data=None,
+                debug=False):
     """Reads frames and extracts encoded data as per the encoding map's base."""
 
     baseN_data_buffer = ''
@@ -30,9 +38,9 @@ def read_frames(cap, config, config_params, content_type, start_frame_index, num
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         # Read the frame
         _, frame_to_decode = cap.read()
-        (total_baseN_length, data_current_length, output_data,
-         baseN_data_buffer) = process_frame(frame_to_decode, config, content_type, encoding_color_map, total_baseN_length, data_current_length,
-                                            output_data, baseN_data_buffer)
+        (total_baseN_length, data_current_length, output_data, baseN_data_buffer) = process_frame(frame_to_decode, config, content_type,
+                                                                                                  encoding_color_map, total_baseN_length,
+                                                                                                  data_current_length, output_data, baseN_data_buffer)
 
         total_frames_consumed = frame_index + 1 - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
         # Break out of the loop once the full metadata has been read.
@@ -83,8 +91,8 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     frames_consumed = pm_obj.premetadata_frame_count
     print(f"read_metadata: Init: Frames consumed before metadata: {frames_consumed}") if debug else None
 
-    metadata_normal, metadata_normal_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
-                                                                   pm_obj.sections["normal"]["data_size"], "string", debug)
+    metadata_normal, metadata_normal_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed,
+                                                                   num_frames, pm_obj.sections["normal"]["data_size"], "string", debug)
 
     metadata_normal = metadata_normal.encode()
     triplet_length = len(metadata_normal) // 3
@@ -118,8 +126,8 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Base64 metadata
     """
     frames_consumed += metadata_normal_frames_consumed
-    metadata_base64, metadata_base64_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
-                                                                   pm_obj.sections["base64"]["data_size"], "string", debug)
+    metadata_base64, metadata_base64_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed,
+                                                                   num_frames, pm_obj.sections["base64"]["data_size"], "string", debug)
     metadata_base64 = base64.b64decode(metadata_base64).decode()
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_base64)
@@ -132,8 +140,8 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Rot13 metadata
     """
     frames_consumed += metadata_base64_frames_consumed
-    metadata_rot13, metadata_rot13_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
-                                                                 pm_obj.sections["rot13"]["data_size"], "string", debug)
+    metadata_rot13, metadata_rot13_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed,
+                                                                 num_frames, pm_obj.sections["rot13"]["data_size"], "string", debug)
     metadata_rot13 = rot13_rot5(metadata_rot13)
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_rot13)
@@ -146,7 +154,8 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Reed-Solomon metadata
     """
     frames_consumed += metadata_rot13_frames_consumed
-    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
+    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA,
+                                                                               frames_consumed, num_frames,
                                                                                pm_obj.sections["reed_solomon"]["data_size"], "bytearray", debug)
 
     # Decode using Reed-Solomon
@@ -185,7 +194,8 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
 
 def get_file_metadata(config, cap, config_params_premetadata, config_params_metadata, num_frames, debug):
     # PREMETADATA
-    pre_metadata, pre_metadata_frame_count = read_frames(cap, config, config_params_premetadata, ContentType.PREMETADATA, 0, num_frames, None, "string", debug)
+    pre_metadata, pre_metadata_frame_count = read_frames(cap, config, config_params_premetadata, ContentType.PREMETADATA, 0, num_frames, None,
+                                                         "string", debug)
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
     print("# ------------------------------------------") if debug else None
