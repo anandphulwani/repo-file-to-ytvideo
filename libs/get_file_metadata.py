@@ -83,8 +83,9 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     frames_consumed = pm_obj.premetadata_frame_count
     print(f"read_metadata: Init: Frames consumed before metadata: {frames_consumed}") if debug else None
 
-    metadata_normal, metadata_normal_frames_consumed = read_frames(cap, config, ContentType.METADATA, frames_consumed, num_frames,
+    metadata_normal, metadata_normal_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
                                                                    pm_obj.sections["normal"]["data_size"], "string", debug)
+
     metadata_normal = metadata_normal.encode()
     triplet_length = len(metadata_normal) // 3
 
@@ -117,7 +118,7 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Base64 metadata
     """
     frames_consumed += metadata_normal_frames_consumed
-    metadata_base64, metadata_base64_frames_consumed = read_frames(cap, config, ContentType.METADATA, frames_consumed, num_frames,
+    metadata_base64, metadata_base64_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
                                                                    pm_obj.sections["base64"]["data_size"], "string", debug)
     metadata_base64 = base64.b64decode(metadata_base64).decode()
 
@@ -131,7 +132,7 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Rot13 metadata
     """
     frames_consumed += metadata_base64_frames_consumed
-    metadata_rot13, metadata_rot13_frames_consumed = read_frames(cap, config, ContentType.METADATA, frames_consumed, num_frames,
+    metadata_rot13, metadata_rot13_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
                                                                  pm_obj.sections["rot13"]["data_size"], "string", debug)
     metadata_rot13 = rot13_rot5(metadata_rot13)
 
@@ -145,8 +146,9 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Reed-Solomon metadata
     """
     frames_consumed += metadata_rot13_frames_consumed
-    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(cap, config, ContentType.METADATA, frames_consumed, num_frames,
+    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
                                                                                pm_obj.sections["reed_solomon"]["data_size"], "bytearray", debug)
+
     # Decode using Reed-Solomon
     metadata_reed_solomon = RSCodec(int(pm_obj.sections["reed_solomon"]["rscodec_value"])).decode(metadata_reed_solomon)
     metadata_reed_solomon = metadata_reed_solomon[0] if isinstance(metadata_reed_solomon, tuple) else metadata_reed_solomon
@@ -162,8 +164,9 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
     MODE: Zfec metadata
     """
     frames_consumed += metadata_reed_solomon_frames_consumed
-    metadata_zfec, metadata_zfec_frames_consumed = read_frames(cap, config, ContentType.METADATA, frames_consumed, num_frames,
+    metadata_zfec, metadata_zfec_frames_consumed = read_frames(cap, config, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
                                                                pm_obj.sections["zfec"]["data_size"], "string", debug)
+
     # Decode using Zfec
     zfec_k, zfec_m = 3, 5  # Same values used for encoding
     zfec_decoder = zfec.Decoder(zfec_k, zfec_m)
@@ -182,7 +185,7 @@ def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug
 
 def get_file_metadata(config, cap, config_params_premetadata, config_params_metadata, num_frames, debug):
     # PREMETADATA
-    pre_metadata, pre_metadata_frame_count = read_frames(cap, config, ContentType.PREMETADATA, 0, num_frames, None, "string", debug)
+    pre_metadata, pre_metadata_frame_count = read_frames(cap, config, config_params_premetadata, ContentType.PREMETADATA, 0, num_frames, None, "string", debug)
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
     print("# ------------------------------------------") if debug else None
