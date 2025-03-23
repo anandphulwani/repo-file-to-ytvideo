@@ -83,7 +83,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
     frames_consumed = pm_obj.premetadata_frame_count
     print(f"read_metadata: Init: Frames consumed before metadata: {frames_consumed}") if debug else None
 
-    metadata_normal, metadata_normal_frames_consumed = read_frames_and_get_data_in_format(
+    metadata_normal, metadata_normal_frames_consumed = read_frames(
         cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["normal"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_normal = metadata_normal.encode()
@@ -118,7 +118,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
     MODE: Base64 metadata
     """
     frames_consumed += metadata_normal_frames_consumed
-    metadata_base64, metadata_base64_frames_consumed = read_frames_and_get_data_in_format(
+    metadata_base64, metadata_base64_frames_consumed = read_frames(
         cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["base64"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_base64 = base64.b64decode(metadata_base64).decode()
@@ -133,7 +133,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
     MODE: Rot13 metadata
     """
     frames_consumed += metadata_base64_frames_consumed
-    metadata_rot13, metadata_rot13_frames_consumed = read_frames_and_get_data_in_format(
+    metadata_rot13, metadata_rot13_frames_consumed = read_frames(
         cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["rot13"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     metadata_rot13 = rot13_rot5(metadata_rot13)
@@ -148,7 +148,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
     MODE: Reed-Solomon metadata
     """
     frames_consumed += metadata_rot13_frames_consumed
-    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames_and_get_data_in_format(
+    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(
         cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["reed_solomon"]["data_size"], config["encoding_bits_per_value"]), "bytearray", debug)
     # Decode using Reed-Solomon
@@ -166,7 +166,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
     MODE: Zfec metadata
     """
     frames_consumed += metadata_reed_solomon_frames_consumed
-    metadata_zfec, metadata_zfec_frames_consumed = read_frames_and_get_data_in_format(
+    metadata_zfec, metadata_zfec_frames_consumed = read_frames(
         cap, config, ContentType.METADATA, frames_consumed, num_frames,
         get_length_in_base(pm_obj.sections["zfec"]["data_size"], config["encoding_bits_per_value"]), "string", debug)
     # Decode using Zfec
@@ -187,7 +187,7 @@ def read_metadata(cap, config, pm_obj, num_frames, debug=False):
 
 def get_file_metadata(config, cap, num_frames, debug):
     # PREMETADATA
-    pre_metadata, pre_metadata_frame_count = read_frames_and_get_data_in_format(cap, config, ContentType.PREMETADATA, 0,
+    pre_metadata, pre_metadata_frame_count = read_frames(cap, config, ContentType.PREMETADATA, 0,
                                                                                 num_frames, None, "string", debug)
     pm_obj = PreMetadata()
     pm_obj.parse(pre_metadata, pre_metadata_frame_count)
