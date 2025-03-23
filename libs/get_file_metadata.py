@@ -75,7 +75,7 @@ def check_metadata_valid_using_checksum(metadata_str):
     return True, actual_metadata
 
 
-def read_metadata(cap, config, pm_obj, num_frames, debug=False):
+def read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug=False):
     # 1st pass
     """
     MODE: Normal metadata
@@ -193,7 +193,7 @@ def get_file_metadata(config, cap, config_params_premetadata, config_params_meta
     print("# ------------------------------------------") if debug else None
 
     # METADATA
-    metadata = read_metadata(cap, config, pm_obj, num_frames, debug)
+    metadata = read_metadata(cap, config, config_params_metadata, pm_obj, num_frames, debug)
     m_obj = Metadata()
     m_obj.parse(metadata)
     print("# ------------------------------------------") if debug else None
