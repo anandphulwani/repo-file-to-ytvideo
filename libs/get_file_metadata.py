@@ -11,7 +11,7 @@ from .determine_color_key import determine_color_key
 from .detect_base_from_json import get_length_in_base
 
 
-def read_frames(cap, config, config_params, content_type, start_frame_index, num_frames, data_expected_length=None, debug=False):
+def read_frames(cap, config, config_params, content_type, start_frame_index, num_frames, total_baseN_length=None, debug=False):
     """Reads frames and extracts encoded data as per the encoding map's base."""
 
     baseN_data_buffer = ''
@@ -30,13 +30,13 @@ def read_frames(cap, config, config_params, content_type, start_frame_index, num
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
         # Read the frame
         _, frame_to_decode = cap.read()
-        (data_expected_length, data_current_length, output_data,
-         baseN_data_buffer) = process_frame(frame_to_decode, config, content_type, encoding_color_map, data_expected_length, data_current_length,
+        (total_baseN_length, data_current_length, output_data,
+         baseN_data_buffer) = process_frame(frame_to_decode, config, content_type, encoding_color_map, total_baseN_length, data_current_length,
                                             output_data, baseN_data_buffer)
 
         total_frames_consumed = frame_index + 1 - config['pick_frame_to_read'][content_type.value] + frame_step - start_frame_index
         # Break out of the loop once the full metadata has been read.
-        if data_expected_length and data_current_length >= data_expected_length:
+        if total_baseN_length and data_current_length >= total_baseN_length:
             break
 
     print(f"read_frames: Total frames consumed: {total_frames_consumed}") if debug else None
