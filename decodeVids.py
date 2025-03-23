@@ -117,7 +117,7 @@ def process_images(video_path, debug=False):
         process_frame_optimized,
         produce_tasks(frame_queue=frame_queue,
                       stop_event=stop_event,
-                      config_params=config_params,
+                      config_params=config_params["DATACONTENT"],
                       content_type=ContentType.DATACONTENT,
                       frame_step=frame_step,
                       total_baseN_length=total_baseN_length,
