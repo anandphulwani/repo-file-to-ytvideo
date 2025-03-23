@@ -84,7 +84,6 @@ def process_images(video_path, debug=False):
     # C) OPEN VIDEO & LAUNCH READER THREAD
     #---------------------------------------------------------------------
     cap = cv2.VideoCapture(video_path)
-    check_video_file(config, cap)
 
     # This event allows us to signal the thread to stop if needed
     stop_event = threading.Event()
