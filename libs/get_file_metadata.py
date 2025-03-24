@@ -90,8 +90,8 @@ def read_metadata(cap, config_params_metadata, pm_obj, num_frames, debug=False):
     frames_consumed = pm_obj.premetadata_frame_count
     print(f"read_metadata: Init: Frames consumed before metadata: {frames_consumed}") if debug else None
 
-    metadata_normal, metadata_normal_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed,
-                                                                   num_frames, pm_obj.sections["normal"]["data_size"], "string", debug)
+    metadata_normal, metadata_normal_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
+                                                                   pm_obj.sections["normal"]["data_size"], "string", debug)
 
     metadata_normal = metadata_normal.encode()
     triplet_length = len(metadata_normal) // 3
@@ -125,8 +125,8 @@ def read_metadata(cap, config_params_metadata, pm_obj, num_frames, debug=False):
     MODE: Base64 metadata
     """
     frames_consumed += metadata_normal_frames_consumed
-    metadata_base64, metadata_base64_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed,
-                                                                   num_frames, pm_obj.sections["base64"]["data_size"], "string", debug)
+    metadata_base64, metadata_base64_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
+                                                                   pm_obj.sections["base64"]["data_size"], "string", debug)
     metadata_base64 = base64.b64decode(metadata_base64).decode()
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_base64)
@@ -139,8 +139,8 @@ def read_metadata(cap, config_params_metadata, pm_obj, num_frames, debug=False):
     MODE: Rot13 metadata
     """
     frames_consumed += metadata_base64_frames_consumed
-    metadata_rot13, metadata_rot13_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed,
-                                                                 num_frames, pm_obj.sections["rot13"]["data_size"], "string", debug)
+    metadata_rot13, metadata_rot13_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed, num_frames,
+                                                                 pm_obj.sections["rot13"]["data_size"], "string", debug)
     metadata_rot13 = rot13_rot5(metadata_rot13)
 
     is_metadata_valid, metadata_or_errormesg = check_metadata_valid_using_checksum(metadata_rot13)
@@ -153,9 +153,9 @@ def read_metadata(cap, config_params_metadata, pm_obj, num_frames, debug=False):
     MODE: Reed-Solomon metadata
     """
     frames_consumed += metadata_rot13_frames_consumed
-    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA,
-                                                                               frames_consumed, num_frames,
-                                                                               pm_obj.sections["reed_solomon"]["data_size"], "bytearray", debug)
+    metadata_reed_solomon, metadata_reed_solomon_frames_consumed = read_frames(cap, config_params_metadata, ContentType.METADATA, frames_consumed,
+                                                                               num_frames, pm_obj.sections["reed_solomon"]["data_size"], "bytearray",
+                                                                               debug)
 
     # Decode using Reed-Solomon
     metadata_reed_solomon = base64.b64decode(metadata_reed_solomon)
@@ -194,9 +194,10 @@ def read_metadata(cap, config_params_metadata, pm_obj, num_frames, debug=False):
 
 def get_file_metadata(cap, config_params_premetadata, config_params_metadata, num_frames, debug):
     # PREMETADATA
-    pre_metadata, pre_metadata_frame_count = read_frames(cap, config_params_premetadata, ContentType.PREMETADATA, 0, num_frames, None,
-                                                         "string", debug)
-    chars_to_strip_from_pre_metadata = (len(config_params_premetadata['premetadata_metadata_main_delimiter']) * 2) + config_params_premetadata['length_of_digits_to_represent_size']
+    pre_metadata, pre_metadata_frame_count = read_frames(cap, config_params_premetadata, ContentType.PREMETADATA, 0, num_frames, None, "string",
+                                                         debug)
+    chars_to_strip_from_pre_metadata = (len(config_params_premetadata['premetadata_metadata_main_delimiter']) *
+                                        2) + config_params_premetadata['length_of_digits_to_represent_size']
     pre_metadata = pre_metadata[chars_to_strip_from_pre_metadata:]
 
     pm_obj = PreMetadata()
