@@ -7,7 +7,7 @@ import hashlib
 import threading
 from queue import Queue
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count, Manager
+from multiprocessing import Pool, cpu_count, Manager, Process, Queue as multiprocessingQueue
 from libs.config_loader import load_config
 from libs.check_video_file import check_video_file
 from libs.content_type import ContentType
@@ -72,11 +72,10 @@ def process_images(video_path, debug=False):
     #---------------------------------------------------------------------
     # B) PREP FOR WRITING & SHA1
     #---------------------------------------------------------------------
-    manager = Manager()
-    write_queue = manager.Queue()
-    writer_pool = Pool(1)  # a single writer
+    write_queue = multiprocessingQueue()
     available_filename = get_available_filename_to_decode(config, file_metadata.metadata["filename"])
-    writer_pool.apply_async(writer_process, (write_queue, available_filename))
+    writer_proc = Process(target=writer_process, args=(write_queue, available_filename))
+    writer_proc.start()
 
     sha1 = hashlib.sha1()
 
@@ -163,8 +162,9 @@ def process_images(video_path, debug=False):
 
     # 2) Signal writer to finish
     write_queue.put(None)
-    writer_pool.close()
-    writer_pool.join()
+    writer_proc.join()
+    write_queue.close()
+    write_queue.join_thread()
 
     stream_encoded_file and stream_encoded_file.close()
     stream_decoded_file and stream_decoded_file.close()
