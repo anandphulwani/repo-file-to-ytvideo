@@ -6,8 +6,7 @@ def writer_process(write_queue, file_path):
                 break
             frame_index, data = item
             try:
-                for byte_data in data:
-                    binary_output_file.write(byte_data)
+                binary_output_file.write(b''.join(data))
             except Exception as e:
                 print(f"Error writing data: {e} on frame_index: {frame_index}")
                 break  # Exit on error
