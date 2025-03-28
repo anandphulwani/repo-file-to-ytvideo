@@ -89,7 +89,7 @@ def process_images(video_path, debug=False):
     stop_event = threading.Event()
 
     # Create a queue to hold frames
-    frame_queue = Queue(maxsize=32)  # buffer up to N frames
+    frame_queue = Queue(maxsize=256)  # buffer up to N frames
 
     # Start the dedicated reading thread
     t_reader = threading.Thread(target=frame_reader_thread, args=(cap, frame_queue, stop_event, frame_start, end_index, frame_step), daemon=True)
