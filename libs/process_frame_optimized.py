@@ -83,10 +83,6 @@ def process_frame_optimized(args):
     frames_consumed = ((frame_index - 1 - frames_traversed) // frame_step) if is_last_frame else 0
     data_index = frames_consumed * databoxes_per_frame if is_last_frame else 0
 
-    # Ensure dtype=uint8
-    if frame_to_decode.dtype != np.uint8:
-        frame_to_decode = frame_to_decode.astype(np.uint8)
-
     extracted_baseN_ascii = extract_baseN_data_numba(start_height, start_width, box_step, usable_w, usable_h, databoxes_per_frame, frame_to_decode,
                                                      encoding_color_map_keys, encoding_color_map_values, encoding_color_map_values_lower_bounds,
                                                      encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)

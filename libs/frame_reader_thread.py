@@ -2,6 +2,9 @@
 # A THREAD that continuously reads frames from cap.read()
 #    and pushes them into a multiprocessing-safe queue.
 #############################################################################
+import numpy as np
+
+
 def frame_reader_thread(cap, frame_queue, stop_event, start_index, end_index, frame_step):
     """
     Reads frames from OpenCV in a dedicated thread.
@@ -10,10 +13,18 @@ def frame_reader_thread(cap, frame_queue, stop_event, start_index, end_index, fr
     Once done, enqueues None to signal end.
     """
     frame_index = 0
+    frame_dtype_check_done = None
+
     while not stop_event.is_set():
         ret, frame = cap.read()
         if not ret:
             break
+
+        # Ensure dtype=uint8
+        if frame_dtype_check_done is None:
+            if frame.dtype != np.uint8:
+                raise ValueError("Unexpected frame type: " + str(frame.dtype))
+            frame_dtype_check_done = True
 
         # Only push frames that we actually want to decode:
         if frame_index >= start_index and frame_index <= end_index:
