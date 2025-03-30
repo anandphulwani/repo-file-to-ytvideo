@@ -88,7 +88,7 @@ def process_frame_optimized(args):
                                                      encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)
 
     # Convert all ASCII codes to character values first
-    extracted_baseN_values = "".join(chr(c) for c in extracted_baseN_ascii)
+    extracted_baseN_values = extracted_baseN_ascii.tobytes().decode('ascii')
 
     # Use `extracted_baseN_values` instead of `extracted_baseN_ascii`
     output_data = []
@@ -144,7 +144,7 @@ def process_frame_optimized(args):
             break
 
     if convert_return_output_data == "string":
-        output_data = ''.join(b.decode('utf-8') for b in output_data)
+        output_data = b"".join(output_data).decode("utf-8")
     elif convert_return_output_data == "bytearray":
         output_data = bytearray(b''.join(output_data))
     return (frame_index, output_data, total_baseN_length, len(output_data))
