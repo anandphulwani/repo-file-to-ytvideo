@@ -7,7 +7,7 @@ import hashlib
 import threading
 from queue import Queue
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count, Manager, Process, Queue as multiprocessingQueue
+from multiprocessing import Pool, cpu_count, get_context, Process, Queue as multiprocessingQueue
 from libs.config_loader import load_config
 from libs.check_video_file import check_video_file
 from libs.content_type import ContentType
@@ -98,7 +98,7 @@ def process_images(video_path, debug=False):
     # D) MULTIPROCESSING POOL & IMAP
     #---------------------------------------------------------------------
     # We'll feed tasks from produce_tasks(...) to process_frame_optimized(...)
-    pool = Pool(cpu_count())
+    pool = get_context("forkserver").Pool(cpu_count())
 
     # If you keep a debug text check:
     stream_encoded_file = open(f"{file_metadata.metadata['filename']}_encoded_stream.txt", "r") if debug else None
