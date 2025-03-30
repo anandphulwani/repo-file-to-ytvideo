@@ -107,8 +107,12 @@ def process_frame_optimized(args):
             break
 
         # Convert the chunk into a string (not bytes) and prepend any previous string chunk
-        chunk_bytes = previous_chunk.encode("utf-8") + extracted_baseN_values[processed_baseN_values_index:chunk_end].encode("utf-8")
-        previous_chunk = ""  # reset since we've now consumed it
+        chunk_slice = extracted_baseN_values[processed_baseN_values_index:chunk_end]
+        if previous_chunk:
+            chunk_slice = previous_chunk + chunk_slice
+            previous_chunk = ""
+
+        chunk_bytes = chunk_slice.encode("utf-8")
 
         try:
             # decoding_function expects a string
