@@ -20,9 +20,14 @@ def background_reader(cap, frame_queue, stop_event, frame_start, frame_step):
                 break
             frame_queue.put(frame, timeout=0.5)
 
+            for _ in range(frame_step - 1):
+                ret_skip, _ = cap.read()
+                if not ret_skip:
+                    frame_queue.put(None)
+                    return
+
             # Skip 'frame_step' frames
             frame_idx += frame_step
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
 
             ret, frame = None, None
         except queue.Full:
