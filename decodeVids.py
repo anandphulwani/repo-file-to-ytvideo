@@ -5,6 +5,7 @@ import heapq
 import sys
 import hashlib
 import threading
+import numpy as np
 from queue import Queue
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count, Manager, Process, Queue as multiprocessingQueue
@@ -19,6 +20,7 @@ from libs.process_frame_optimized import process_frame_optimized
 from libs.get_file_metadata import get_file_metadata
 from libs.produce_tasks import produce_tasks
 from libs.frame_reader_thread import frame_reader_thread
+from libs.shared_buffer import SharedFrameBuffer
 
 config = load_config('config.ini')
 
@@ -84,6 +86,11 @@ def process_images(video_path, debug=False):
     #---------------------------------------------------------------------
     cap = cv2.VideoCapture(video_path)
 
+    num_buffers = 32  # Match the size of previous Queue
+    shape = (int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), 3)
+    dtype = np.uint8
+    shared_buffers = [SharedFrameBuffer(name="", shape=shape, dtype=dtype, create=True) for _ in range(num_buffers)]
+
     # This event allows us to signal the thread to stop if needed
     stop_event = threading.Event()
 
@@ -91,7 +98,9 @@ def process_images(video_path, debug=False):
     frame_queue = Queue(maxsize=256)  # buffer up to N frames
 
     # Start the dedicated reading thread
-    t_reader = threading.Thread(target=frame_reader_thread, args=(cap, frame_queue, stop_event, frame_start, end_index, frame_step), daemon=True)
+    t_reader = threading.Thread(target=frame_reader_thread,
+                                args=(cap, frame_queue, stop_event, frame_start, end_index, frame_step, shared_buffers),
+                                daemon=True)
     t_reader.start()
 
     #---------------------------------------------------------------------
@@ -165,6 +174,10 @@ def process_images(video_path, debug=False):
     writer_proc.join()
     write_queue.close()
     write_queue.join_thread()
+
+    for sb in shared_buffers:
+        sb.close()
+        sb.unlink()
 
     stream_encoded_file and stream_encoded_file.close()
     stream_decoded_file and stream_decoded_file.close()

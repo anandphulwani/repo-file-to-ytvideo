@@ -5,7 +5,7 @@
 import numpy as np
 
 
-def frame_reader_thread(cap, frame_queue, stop_event, start_index, end_index, frame_step):
+def frame_reader_thread(cap, frame_queue, stop_event, start_index, end_index, frame_step, shared_buffers):
     """
     Reads frames from OpenCV in a dedicated thread.
     Only enqueues frames whose index is in [start_index..end_index]
@@ -13,6 +13,7 @@ def frame_reader_thread(cap, frame_queue, stop_event, start_index, end_index, fr
     Once done, enqueues None to signal end.
     """
     frame_index = 0
+    buffer_index = 0
 
     ret, frame = cap.read()
     if not ret:
@@ -30,8 +31,10 @@ def frame_reader_thread(cap, frame_queue, stop_event, start_index, end_index, fr
         # Only push frames that we actually want to decode:
         if frame_index >= start_index and frame_index <= end_index:
             if (frame_index - start_index) % frame_step == 0:
-                # Put (frame_index, frame) in the queue
-                frame_queue.put((frame_index, frame))
+                sb = shared_buffers[buffer_index % len(shared_buffers)]
+                sb.array[...] = frame
+                frame_queue.put((frame_index, sb.name, sb.shape, np.dtype(sb.dtype).name))
+                buffer_index += 1
 
         frame_index += 1
         # If we have already passed end_index, we can break
