@@ -8,6 +8,11 @@ from .content_type import ContentType
 carry_over_chunk = {}
 
 
+def get_chunks(data, size):
+    for i in range(0, len(data), size):
+        yield data[i:i + size], i
+
+
 @numba.njit
 def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int, usable_w: int, usable_h: int, databoxes_per_frame: int,
                              frame_to_decode: np.ndarray, encoding_color_map_keys: np.ndarray, encoding_color_map_values: np.ndarray,
@@ -92,31 +97,26 @@ def process_frame_optimized(args):
 
     # Use `extracted_baseN_values` instead of `extracted_baseN_ascii`
     output_data = []
-    processed_baseN_values_index = 0
     extracted_baseN_values_len = len(extracted_baseN_values)
 
     # Carry over partial chunk from the previous frame as bytes
     previous_chunk = carry_over_chunk.get(frame_index - 1, "")
 
     baseN_data_counter = 0
-    while processed_baseN_values_index < extracted_baseN_values_len:
-        chunk_end = processed_baseN_values_index + encoding_chunk_size
-        if chunk_end > extracted_baseN_values_len:
-            # Store remaining partial chunk for the next frame
-            carry_over_chunk[frame_index] = extracted_baseN_values[processed_baseN_values_index:extracted_baseN_values_len]
+
+    for chunk_slice, index in get_chunks(extracted_baseN_values, encoding_chunk_size):
+        # If last chunk is incomplete, carry it over
+        if index + encoding_chunk_size > extracted_baseN_values_len:
+            carry_over_chunk[frame_index] = extracted_baseN_values[index:]
             break
 
-        # Convert the chunk into a string (not bytes) and prepend any previous string chunk
-        chunk_slice = extracted_baseN_values[processed_baseN_values_index:chunk_end]
         if previous_chunk:
             chunk_slice = previous_chunk + chunk_slice
             previous_chunk = ""
 
-        chunk_bytes = chunk_slice.encode("utf-8")
-
         try:
             # decoding_function expects a string
-            decoded_value = decoding_function(chunk_bytes)  # Already bytes
+            decoded_value = decoding_function(chunk_slice)  # Now passing string directly
             output_data.append(decoded_value)
 
             if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
@@ -135,10 +135,9 @@ def process_frame_optimized(args):
                         print(f"Error extracting length for content type {content_type} from frame {frame_index}")
                         sys.exit(1)
         except Exception as e:
-            print(f"Decoding error: chunk_bytes={chunk_bytes} | {e}")
+            print(f"Decoding error: chunk_slice={chunk_slice} | {e}")
             sys.exit(1)
 
-        processed_baseN_values_index = chunk_end
         baseN_data_counter += 1
         if total_baseN_length is not None and baseN_data_counter == total_baseN_length:
             break
