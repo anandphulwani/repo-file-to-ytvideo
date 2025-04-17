@@ -92,40 +92,39 @@ def process_frame_optimized(args):
                                                      encoding_color_map_keys, encoding_color_map_values, encoding_color_map_values_lower_bounds,
                                                      encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)
 
-    # Convert all ASCII codes to character values first
-    extracted_baseN_values = extracted_baseN_ascii.tobytes().decode('ascii')
+    # Directly convert to ASCII characters without intermediate .tobytes().decode()
+    extracted_chars = list(map(chr, extracted_baseN_ascii))
+    extracted_len = len(extracted_chars)
 
-    # Use `extracted_baseN_values` instead of `extracted_baseN_ascii`
     output_data = []
-    extracted_baseN_values_len = len(extracted_baseN_values)
 
     # Carry over partial chunk from the previous frame as bytes
     previous_chunk = carry_over_chunk.get(frame_index - 1, "")
 
     baseN_data_counter = 0
 
-    for chunk_slice, index in get_chunks(extracted_baseN_values, encoding_chunk_size):
-        # If last chunk is incomplete, carry it over
-        if index + encoding_chunk_size > extracted_baseN_values_len:
-            carry_over_chunk[frame_index] = extracted_baseN_values[index:]
+    i = 0
+    while i < extracted_len:
+        chunk = extracted_chars[i:i + encoding_chunk_size]
+        i += encoding_chunk_size
+
+        if len(chunk) < encoding_chunk_size:
+            carry_over_chunk[frame_index] = ''.join(chunk)
             break
 
-        if previous_chunk:
-            chunk_slice = previous_chunk + chunk_slice
-            previous_chunk = ""
+        chunk_str = previous_chunk + ''.join(chunk) if previous_chunk else ''.join(chunk)
+        previous_chunk = ""
 
         try:
-            # decoding_function expects a string
-            decoded_value = decoding_function(chunk_slice)  # Now passing string directly
-            output_data.append(decoded_value)
+            decoded = decoding_function(chunk_str)
+            output_data.append(decoded)
 
             if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
-                if len(output_data
-                       ) == len(premetadata_metadata_main_delimiter) + length_of_digits_to_represent_size + len(premetadata_metadata_main_delimiter):
-                    output_data_string = ''.join(b.decode('utf-8') for b in output_data)
-                    if output_data_string.startswith(premetadata_metadata_main_delimiter) and output_data_string.endswith(
-                            premetadata_metadata_main_delimiter):
-                        parts = output_data_string.split(premetadata_metadata_main_delimiter, 2)
+                expected_len = len(premetadata_metadata_main_delimiter) * 2 + length_of_digits_to_represent_size
+                if len(output_data) == expected_len:
+                    joined = b''.join(output_data).decode('utf-8')
+                    if joined.startswith(premetadata_metadata_main_delimiter) and joined.endswith(premetadata_metadata_main_delimiter):
+                        parts = joined.split(premetadata_metadata_main_delimiter, 2)
                         if len(parts) == 3:
                             try:
                                 total_baseN_length = int(parts[1])
@@ -135,7 +134,7 @@ def process_frame_optimized(args):
                         print(f"Error extracting length for content type {content_type} from frame {frame_index}")
                         sys.exit(1)
         except Exception as e:
-            print(f"Decoding error: chunk_slice={chunk_slice} | {e}")
+            print(f"Decoding error: chunk={chunk_str} | {e}")
             sys.exit(1)
 
         baseN_data_counter += 1
