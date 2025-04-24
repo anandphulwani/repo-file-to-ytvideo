@@ -63,14 +63,14 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
 import base64
 
 
-@numba.njit
+@numba.njit(fastmath=True)
 def fast_base16_decode_numba(ascii_array):
     n = len(ascii_array)
     output = np.empty(n // 2, dtype=np.uint8)
-    for i in range(0, n, 2):
-        high = ascii_to_nibble(ascii_array[i])
-        low = ascii_to_nibble(ascii_array[i + 1])
-        output[i // 2] = (high << 4) | low
+    for i in numba.prange(n // 2):
+        high = ascii_to_nibble(ascii_array[2 * i])
+        low = ascii_to_nibble(ascii_array[2 * i + 1])
+        output[i] = (high << 4) | low
     return output
 
 
@@ -103,14 +103,14 @@ def generalized_base_decoder(base, ascii_data):
 
 def process_frame_optimized(args):
     """
-    Hyper-optimized Base16-only frame processor.
+    Hyper-optimized Base16-only frame processor with preallocated buffers and parallel decoding.
     """
     global carry_over_chunk
 
     (config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed,
      convert_return_output_data) = args
 
-    # Direct unpack for speed
+    # Quick unpack
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
     box_step = config_params["box_step"]
@@ -128,33 +128,36 @@ def process_frame_optimized(args):
     frames_consumed = ((frame_index - 1 - frames_traversed) // frame_step) if is_last_frame else 0
     data_index = frames_consumed * databoxes_per_frame if is_last_frame else 0
 
-    # Extract raw ASCII codes (uint8 array)
     extracted_baseN_ascii = extract_baseN_data_numba(start_height, start_width, box_step, usable_w, usable_h, databoxes_per_frame, frame_to_decode,
                                                      encoding_color_map_keys, encoding_color_map_values, encoding_color_map_values_lower_bounds,
                                                      encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)
 
-    # Get previous carry-over (already stored as bytes)
     prev_chunk = carry_over_chunk.get(frame_index - 1)
     if prev_chunk:
         prev_chunk_array = np.frombuffer(prev_chunk, dtype=np.uint8)
-        combined_data = np.concatenate((prev_chunk_array, extracted_baseN_ascii))
+        total_size = prev_chunk_array.size + extracted_baseN_ascii.size
+        combined_data = np.empty(total_size, dtype=np.uint8)
+        combined_data[:prev_chunk_array.size] = prev_chunk_array
+        combined_data[prev_chunk_array.size:] = extracted_baseN_ascii
     else:
         combined_data = extracted_baseN_ascii
 
     usable_length = (combined_data.size // 2) * 2
-    output_data = bytearray()
 
+    # --- Preallocate Output Buffer ---
     if usable_length > 0:
         decoded_bytes = fast_base16_decode_numba(combined_data[:usable_length])
-        output_data.extend(decoded_bytes)
+        output_data = bytearray(decoded_bytes)  # Direct conversion, no extend needed
+    else:
+        output_data = bytearray()
 
-    # Store any leftover ASCII digit
+    # --- Store Carry-Over ---
     if combined_data.size > usable_length:
         carry_over_chunk[frame_index] = combined_data[usable_length:].tobytes()
     else:
         carry_over_chunk[frame_index] = b""
 
-    # --- Handle Metadata Length Detection ---
+    # --- Metadata Length Detection ---
     if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
         expected_length = (len(premetadata_metadata_main_delimiter) * 2) + length_of_digits_to_represent_size
         if len(output_data) >= expected_length:
