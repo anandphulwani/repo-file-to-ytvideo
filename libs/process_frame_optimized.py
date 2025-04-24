@@ -103,7 +103,7 @@ def generalized_base_decoder(base, ascii_data):
 
 def process_frame_optimized(args):
     """
-    Refactored to support any base with Numba acceleration where applicable.
+    Ultra-optimized for Base16 decoding, supports other bases as fallback.
     """
     global carry_over_chunk
 
@@ -133,24 +133,36 @@ def process_frame_optimized(args):
                                                      encoding_color_map_keys, encoding_color_map_values, encoding_color_map_values_lower_bounds,
                                                      encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)
 
-    previous_chunk = carry_over_chunk.get(frame_index - 1, b"")
-
-    if isinstance(previous_chunk, str):
-        previous_chunk = previous_chunk.encode('ascii')
-
-    combined_data = previous_chunk + extracted_baseN_ascii.tobytes()
-    combined_len = len(combined_data)
-
     output_data = bytearray()
 
     if base == 16:
-        usable_length = (combined_len // 2) * 2
+        # --- Base16 Optimized Path ---
+        prev_chunk = carry_over_chunk.get(frame_index - 1)
+        if prev_chunk is not None and len(prev_chunk) > 0:
+            prev_chunk_array = np.frombuffer(prev_chunk, dtype=np.uint8)
+            combined_data = np.concatenate((prev_chunk_array, extracted_baseN_ascii))
+        else:
+            combined_data = extracted_baseN_ascii
+
+        usable_length = (combined_data.size // 2) * 2
+
         if usable_length > 0:
-            decoded_bytes = fast_base16_decode_numba(np.frombuffer(combined_data[:usable_length], dtype=np.uint8))
+            decoded_bytes = fast_base16_decode_numba(combined_data[:usable_length])
             output_data.extend(decoded_bytes)
-        carry_over_chunk[frame_index] = combined_data[usable_length:]
+
+        # Store leftover (odd ASCII character if exists)
+        if combined_data.size > usable_length:
+            carry_over_chunk[frame_index] = combined_data[usable_length:].tobytes()
+        else:
+            carry_over_chunk[frame_index] = b""
+
     else:
-        # For other bases, decode the entire batch as string
+        # --- Generic Base Fallback ---
+        prev_chunk = carry_over_chunk.get(frame_index - 1, b"")
+        if isinstance(prev_chunk, str):
+            prev_chunk = prev_chunk.encode('ascii')
+
+        combined_data = prev_chunk + extracted_baseN_ascii.tobytes()
         ascii_str = combined_data.decode('ascii')
         try:
             decoded_bytes = generalized_base_decoder(base, ascii_str)
@@ -160,6 +172,7 @@ def process_frame_optimized(args):
             print(f"Decoding error in frame {frame_index}: {e}")
             sys.exit(1)
 
+    # --- Handle Metadata Length Detection ---
     if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
         expected_length = (len(premetadata_metadata_main_delimiter) * 2) + length_of_digits_to_represent_size
         if len(output_data) >= expected_length:
@@ -177,6 +190,7 @@ def process_frame_optimized(args):
                 print(f"Error extracting length for content type {content_type} from frame {frame_index}")
                 sys.exit(1)
 
+    # --- Final Output Conversion ---
     if convert_return_output_data == "string":
         output_data = output_data.decode("utf-8", errors='ignore')
     elif convert_return_output_data == "bytearray":
