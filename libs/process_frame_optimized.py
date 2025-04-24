@@ -62,7 +62,7 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
 
 def process_frame_optimized(args):
     """
-    Optimized frame processing with correct chunk carry-over handling.
+    Optimized frame processing with batch decoding and reduced overhead.
     """
     global carry_over_chunk
 
@@ -95,55 +95,50 @@ def process_frame_optimized(args):
     # Convert all ASCII codes to character values first
     extracted_baseN_values = extracted_baseN_ascii.tobytes().decode('ascii')
 
-    # Use `extracted_baseN_values` instead of `extracted_baseN_ascii`
-    output_data = []
-    extracted_baseN_values_len = len(extracted_baseN_values)
-
-    # Carry over partial chunk from the previous frame as bytes
+    # Handle carry-over
     previous_chunk = carry_over_chunk.get(frame_index - 1, "")
+    combined_data = previous_chunk + extracted_baseN_values
+    combined_len = len(combined_data)
 
-    baseN_data_counter = 0
+    # Determine how many full chunks we can process
+    full_chunk_end = (combined_len // encoding_chunk_size) * encoding_chunk_size
 
-    for chunk_slice, index in get_chunks(extracted_baseN_values, encoding_chunk_size):
-        # If last chunk is incomplete, carry it over
-        if index + encoding_chunk_size > extracted_baseN_values_len:
-            carry_over_chunk[frame_index] = extracted_baseN_values[index:]
-            break
+    chunks_to_decode = combined_data[:full_chunk_end]
+    carry_over_chunk[frame_index] = combined_data[full_chunk_end:]  # Save leftover
 
-        if previous_chunk:
-            chunk_slice = previous_chunk + chunk_slice
-            previous_chunk = ""
+    output_data = bytearray()
 
+    # Batch decode (if there's data)
+    if chunks_to_decode:
         try:
-            # decoding_function expects a string
-            decoded_value = decoding_function(chunk_slice)  # Now passing string directly
-            output_data.append(decoded_value)
-
-            if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
-                if len(output_data
-                       ) == len(premetadata_metadata_main_delimiter) + length_of_digits_to_represent_size + len(premetadata_metadata_main_delimiter):
-                    output_data_string = ''.join(b.decode('utf-8') for b in output_data)
-                    if output_data_string.startswith(premetadata_metadata_main_delimiter) and output_data_string.endswith(
-                            premetadata_metadata_main_delimiter):
-                        parts = output_data_string.split(premetadata_metadata_main_delimiter, 2)
-                        if len(parts) == 3:
-                            try:
-                                total_baseN_length = int(parts[1])
-                            except ValueError:
-                                pass
-                    if total_baseN_length is None:
-                        print(f"Error extracting length for content type {content_type} from frame {frame_index}")
-                        sys.exit(1)
+            decoded_bytes = decoding_function(chunks_to_decode)
+            output_data.extend(decoded_bytes)
         except Exception as e:
-            print(f"Decoding error: chunk_slice={chunk_slice} | {e}")
+            print(f"Batch decoding error in frame {frame_index}: {e}")
             sys.exit(1)
 
-        baseN_data_counter += 1
-        if total_baseN_length is not None and baseN_data_counter == total_baseN_length:
-            break
+    # Handle dynamic total_baseN_length detection (only for PREMETADATA/METADATA)
+    if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
+        expected_length = (len(premetadata_metadata_main_delimiter) * 2) + length_of_digits_to_represent_size
+        if len(output_data) >= expected_length:
+            output_data_string = output_data.decode('utf-8', errors='ignore')
+            if output_data_string.startswith(premetadata_metadata_main_delimiter) and output_data_string.endswith(
+                    premetadata_metadata_main_delimiter):
+                parts = output_data_string.split(premetadata_metadata_main_delimiter, 2)
+                if len(parts) == 3:
+                    try:
+                        total_baseN_length = int(parts[1])
+                    except ValueError:
+                        print(f"Invalid length value in frame {frame_index}")
+                        sys.exit(1)
+            if total_baseN_length is None:
+                print(f"Error extracting length for content type {content_type} from frame {frame_index}")
+                sys.exit(1)
 
+    # Convert output as requested
     if convert_return_output_data == "string":
-        output_data = b"".join(output_data).decode("utf-8")
+        output_data = output_data.decode("utf-8", errors='ignore')
     elif convert_return_output_data == "bytearray":
-        output_data = bytearray(b''.join(output_data))
+        output_data = bytearray(output_data)
+
     return (frame_index, output_data, total_baseN_length, len(output_data))

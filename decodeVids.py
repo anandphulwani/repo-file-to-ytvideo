@@ -129,17 +129,17 @@ def process_images(video_path, debug=False):
         frame_index, output_data = result[0], result[1]
 
         # Update SHA1 & debug checks
-        for data_bytes in output_data:
-            sha1.update(data_bytes)
-            if stream_encoded_file:
-                data_binary_string = ''.join(f"{byte:08b}" for byte in data_bytes)
-                if stream_decoded_file:
-                    stream_decoded_file.write(data_binary_string)
-                expected_binary_string = stream_encoded_file.read(len(data_binary_string))
-                if data_binary_string != expected_binary_string:
-                    print(f"Mismatch at frame {frame_index}: "
-                          f"expected={expected_binary_string}, got={data_binary_string}")
-                    sys.exit(1)
+        sha1.update(output_data)  # Directly update with bytearray
+
+        if stream_encoded_file:
+            data_binary_string = ''.join(f"{byte:08b}" for byte in output_data)
+            if stream_decoded_file:
+                stream_decoded_file.write(data_binary_string)
+            expected_binary_string = stream_encoded_file.read(len(data_binary_string))
+            if data_binary_string != expected_binary_string:
+                print(f"Mismatch at frame {frame_index}: "
+                      f"expected={expected_binary_string}, got={data_binary_string}")
+                sys.exit(1)
 
         # Pass data to writer
         write_queue.put((frame_index, output_data))
