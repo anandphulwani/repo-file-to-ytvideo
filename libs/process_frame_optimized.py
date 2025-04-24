@@ -60,13 +60,57 @@ def extract_baseN_data_numba(start_height: int, start_width: int, box_step: int,
     return baseN_data_buffer[:databoxes_used]
 
 
+import base64
+
+
+@numba.njit
+def fast_base16_decode_numba(ascii_array):
+    n = len(ascii_array)
+    output = np.empty(n // 2, dtype=np.uint8)
+    for i in range(0, n, 2):
+        high = ascii_to_nibble(ascii_array[i])
+        low = ascii_to_nibble(ascii_array[i + 1])
+        output[i // 2] = (high << 4) | low
+    return output
+
+
+@numba.njit
+def ascii_to_nibble(char):
+    if 48 <= char <= 57:  # '0'-'9'
+        return char - 48
+    elif 65 <= char <= 70:  # 'A'-'F'
+        return char - 55
+    elif 97 <= char <= 102:  # 'a'-'f'
+        return char - 87
+    else:
+        raise ValueError(f"Invalid hex digit: {char}")
+
+
+def generalized_base_decoder(base, ascii_data):
+    if base == 64:
+        # Ensure proper padding for Base64
+        padding = len(ascii_data) % 4
+        if padding:
+            ascii_data += '=' * (4 - padding)
+        return base64.b64decode(ascii_data)
+    elif base in [2, 4, 8, 10]:
+        num = int(ascii_data, base)
+        byte_length = (num.bit_length() + 7) // 8
+        return num.to_bytes(byte_length, 'big')
+    else:
+        raise ValueError(f"Unsupported base: {base}")
+
+
 def process_frame_optimized(args):
     """
-    Optimized frame processing with batch decoding and reduced overhead.
+    Refactored to support any base with Numba acceleration where applicable.
     """
     global carry_over_chunk
 
-    config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed, convert_return_output_data = args
+    (config_params, content_type, frame_to_decode, frame_index, frame_step, total_baseN_length, num_frames, frames_traversed,
+     convert_return_output_data) = args
+
+    base = config_params["encoding_base"]
 
     start_height = config_params["start_height"]
     start_width = config_params["start_width"]
@@ -74,14 +118,11 @@ def process_frame_optimized(args):
     usable_w = config_params["usable_w"]
     usable_h = config_params["usable_h"]
     databoxes_per_frame = config_params["databoxes_per_frame"]
-    encoding_chunk_size = config_params["encoding_chunk_size"]
-    decoding_function = config_params["decoding_function"]
     encoding_color_map_keys = config_params["encoding_color_map_keys"]
     encoding_color_map_values = config_params["encoding_color_map_values"]
     encoding_color_map_values_lower_bounds = config_params["encoding_color_map_values_lower_bounds"]
     encoding_color_map_values_upper_bounds = config_params["encoding_color_map_values_upper_bounds"]
     premetadata_metadata_main_delimiter = config_params["premetadata_metadata_main_delimiter"]
-    premetadata_metadata_sub_delimiter = config_params["premetadata_metadata_sub_delimiter"]
     length_of_digits_to_represent_size = config_params["length_of_digits_to_represent_size"]
 
     is_last_frame = (frame_index + 1 >= (num_frames - frame_step + 1))
@@ -92,32 +133,33 @@ def process_frame_optimized(args):
                                                      encoding_color_map_keys, encoding_color_map_values, encoding_color_map_values_lower_bounds,
                                                      encoding_color_map_values_upper_bounds, total_baseN_length, data_index, is_last_frame)
 
-    # Convert all ASCII codes to character values first
-    extracted_baseN_values = extracted_baseN_ascii.tobytes().decode('ascii')
+    previous_chunk = carry_over_chunk.get(frame_index - 1, b"")
 
-    # Handle carry-over
-    previous_chunk = carry_over_chunk.get(frame_index - 1, "")
-    combined_data = previous_chunk + extracted_baseN_values
+    if isinstance(previous_chunk, str):
+        previous_chunk = previous_chunk.encode('ascii')
+
+    combined_data = previous_chunk + extracted_baseN_ascii.tobytes()
     combined_len = len(combined_data)
-
-    # Determine how many full chunks we can process
-    full_chunk_end = (combined_len // encoding_chunk_size) * encoding_chunk_size
-
-    chunks_to_decode = combined_data[:full_chunk_end]
-    carry_over_chunk[frame_index] = combined_data[full_chunk_end:]  # Save leftover
 
     output_data = bytearray()
 
-    # Batch decode (if there's data)
-    if chunks_to_decode:
-        try:
-            decoded_bytes = decoding_function(chunks_to_decode)
+    if base == 16:
+        usable_length = (combined_len // 2) * 2
+        if usable_length > 0:
+            decoded_bytes = fast_base16_decode_numba(np.frombuffer(combined_data[:usable_length], dtype=np.uint8))
             output_data.extend(decoded_bytes)
+        carry_over_chunk[frame_index] = combined_data[usable_length:]
+    else:
+        # For other bases, decode the entire batch as string
+        ascii_str = combined_data.decode('ascii')
+        try:
+            decoded_bytes = generalized_base_decoder(base, ascii_str)
+            output_data.extend(decoded_bytes)
+            carry_over_chunk[frame_index] = b""
         except Exception as e:
-            print(f"Batch decoding error in frame {frame_index}: {e}")
+            print(f"Decoding error in frame {frame_index}: {e}")
             sys.exit(1)
 
-    # Handle dynamic total_baseN_length detection (only for PREMETADATA/METADATA)
     if content_type in [ContentType.PREMETADATA, ContentType.METADATA] and total_baseN_length is None:
         expected_length = (len(premetadata_metadata_main_delimiter) * 2) + length_of_digits_to_represent_size
         if len(output_data) >= expected_length:
@@ -135,7 +177,6 @@ def process_frame_optimized(args):
                 print(f"Error extracting length for content type {content_type} from frame {frame_index}")
                 sys.exit(1)
 
-    # Convert output as requested
     if convert_return_output_data == "string":
         output_data = output_data.decode("utf-8", errors='ignore')
     elif convert_return_output_data == "bytearray":
